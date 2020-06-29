@@ -1,0 +1,1380 @@
+---
+title: "SIOP ML Contest"
+author: "SIOP ML Team"
+date: 'Most recently updated `r format(Sys.time(), "%A %B %d %Y %X")` Eastern'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+```
+
+## SIOP Contest
+
+This is where we'll document our approach and progress to SIOP's 2020 Machine Learning competition.
+
+[possibly relevant](https://towardsdatascience.com/regression-models-with-multiple-target-variables-8baa75aacd)
+
+...also could look into pareto analysis (has been used in the literature to maimize both DV prediction and diversity)
+
+>Due dates pushed back indefinitely as of 3/29/20.
+
+Note: We need 1125 "hires" and 1125 "don't hires" (within the participant_dev .csv file), so regression is back in play...
+
+```{r data}
+
+train <- read.csv("train.csv")
+participant_dev <- read.csv("participant_dev.csv")
+
+```
+
+```{r recode, include=FALSE}
+
+data <- read.csv("train.csv")
+
+subset0<-data[ which(data$Overall_Rating !=3 & data$Overall_Rating !=1 & data$Overall_Rating !=2 & data$Overall_Rating !=4 & data$Overall_Rating !=5),]
+subset1<-data[ which(data$Overall_Rating ==3 | data$Overall_Rating ==1 | data$Overall_Rating ==2 | data$Overall_Rating ==4 | data$Overall_Rating ==5),]
+subset1<-as.data.frame(subset1)
+subset2<-subset1[ which(subset1$Technical_Skills ==1 | subset1$Technical_Skills ==2 | subset1$Technical_Skills ==3 | subset1$Technical_Skills ==4 | subset1$Technical_Skills ==5),]
+subset3<-subset2[ which(subset2$Teamwork ==1 | subset2$Teamwork ==2 | subset2$Teamwork ==3 | subset2$Teamwork ==4 | subset2$Teamwork ==5),]
+subset4<-subset3[ which(subset3$Customer_Service ==1 | subset3$Customer_Service ==2 | subset3$Customer_Service ==3 | subset3$Customer_Service ==4 | subset3$Customer_Service ==5),]
+subset5<-subset4[ which(subset4$Hire_Again ==1 | subset4$Hire_Again ==2 | subset4$Hire_Again ==3 | subset4$Hire_Again ==4 | subset4$Hire_Again ==5),]
+
+train <- subset5   ## this is only necessary to incorporate Diego's script (above) with Kulas variable names (below)
+
+yaddup <- read.csv("yaddup.csv")
+train$scale <- yaddup$scale
+
+#########################################
+#########################################    SJTs
+#########################################
+
+train$SJ_Most_1 <- as.factor(as.character(train$SJ_Most_1))
+train$SJ_Least_1 <- as.factor(as.character(train$SJ_Least_1))
+train$SJ_Most_2 <- as.factor(as.character(train$SJ_Most_2))
+train$SJ_Least_2 <- as.factor(as.character(train$SJ_Least_2))
+train$SJ_Most_3 <- as.factor(as.character(train$SJ_Most_3))
+train$SJ_Least_3 <- as.factor(as.character(train$SJ_Least_3))
+train$SJ_Most_4 <- as.factor(as.character(train$SJ_Most_4))
+train$SJ_Least_4 <- as.factor(as.character(train$SJ_Least_4))
+train$SJ_Most_5 <- as.factor(as.character(train$SJ_Most_5))
+train$SJ_Least_5 <- as.factor(as.character(train$SJ_Least_5))
+train$SJ_Most_6 <- as.factor(as.character(train$SJ_Most_6))
+train$SJ_Least_6 <- as.factor(as.character(train$SJ_Least_6))
+train$SJ_Most_7 <- as.factor(as.character(train$SJ_Most_7))
+train$SJ_Least_7 <- as.factor(as.character(train$SJ_Least_7))
+train$SJ_Most_8 <- as.factor(as.character(train$SJ_Most_8))
+train$SJ_Least_8 <- as.factor(as.character(train$SJ_Least_8))
+train$SJ_Most_9 <- as.factor(as.character(train$SJ_Most_9))
+train$SJ_Least_9 <- as.factor(as.character(train$SJ_Least_9))
+
+train$SJ1[train$SJ_Most_1 == "1" & train$SJ_Least_1 == "2" ] <- "1.2"
+train$SJ1[train$SJ_Most_1 == "1" & train$SJ_Least_1 == "3" ] <- "1.3"
+train$SJ1[train$SJ_Most_1 == "1" & train$SJ_Least_1 == "4" ] <- "1.4"
+train$SJ1[train$SJ_Most_1 == "2" & train$SJ_Least_1 == "1" ] <- "2.1"
+train$SJ1[train$SJ_Most_1 == "2" & train$SJ_Least_1 == "3" ] <- "2.3"
+train$SJ1[train$SJ_Most_1 == "2" & train$SJ_Least_1 == "4" ] <- "2.4"
+train$SJ1[train$SJ_Most_1 == "3" & train$SJ_Least_1 == "1" ] <- "3.1"
+train$SJ1[train$SJ_Most_1 == "3" & train$SJ_Least_1 == "2" ] <- "3.2"
+train$SJ1[train$SJ_Most_1 == "3" & train$SJ_Least_1 == "4" ] <- "3.4"
+train$SJ1[train$SJ_Most_1 == "4" & train$SJ_Least_1 == "1" ] <- "4.1"
+train$SJ1[train$SJ_Most_1 == "4" & train$SJ_Least_1 == "2" ] <- "4.2"
+train$SJ1[train$SJ_Most_1 == "4" & train$SJ_Least_1 == "3" ] <- "4.3"
+
+
+train$SJ2[train$SJ_Most_2 == "1" & train$SJ_Least_2 == "2" ] <- "1.2"
+train$SJ2[train$SJ_Most_2 == "1" & train$SJ_Least_2 == "3" ] <- "1.3"
+train$SJ2[train$SJ_Most_2 == "1" & train$SJ_Least_2 == "4" ] <- "1.4"
+train$SJ2[train$SJ_Most_2 == "2" & train$SJ_Least_2 == "1" ] <- "2.1"
+train$SJ2[train$SJ_Most_2 == "2" & train$SJ_Least_2 == "3" ] <- "2.3"
+train$SJ2[train$SJ_Most_2 == "2" & train$SJ_Least_2 == "4" ] <- "2.4"
+train$SJ2[train$SJ_Most_2 == "3" & train$SJ_Least_2 == "1" ] <- "3.1"
+train$SJ2[train$SJ_Most_2 == "3" & train$SJ_Least_2 == "2" ] <- "3.2"
+train$SJ2[train$SJ_Most_2 == "3" & train$SJ_Least_2 == "4" ] <- "3.4"
+train$SJ2[train$SJ_Most_2 == "4" & train$SJ_Least_2 == "1" ] <- "4.1"
+train$SJ2[train$SJ_Most_2 == "4" & train$SJ_Least_2 == "2" ] <- "4.2"
+train$SJ2[train$SJ_Most_2 == "4" & train$SJ_Least_2 == "3" ] <- "4.3"
+
+train$SJ2_score <- NA ## needed to retain column locations in below script (locations were written with this var in data)
+
+train$SJ3[train$SJ_Most_3 == "1" & train$SJ_Least_3 == "2" ] <- "1.2"
+train$SJ3[train$SJ_Most_3 == "1" & train$SJ_Least_3 == "3" ] <- "1.3"
+train$SJ3[train$SJ_Most_3 == "1" & train$SJ_Least_3 == "4" ] <- "1.4"
+train$SJ3[train$SJ_Most_3 == "2" & train$SJ_Least_3 == "1" ] <- "2.1"
+train$SJ3[train$SJ_Most_3 == "2" & train$SJ_Least_3 == "3" ] <- "2.3"
+train$SJ3[train$SJ_Most_3 == "2" & train$SJ_Least_3 == "4" ] <- "2.4"
+train$SJ3[train$SJ_Most_3 == "3" & train$SJ_Least_3 == "1" ] <- "3.1"
+train$SJ3[train$SJ_Most_3 == "3" & train$SJ_Least_3 == "2" ] <- "3.2"
+train$SJ3[train$SJ_Most_3 == "3" & train$SJ_Least_3 == "4" ] <- "3.4"
+train$SJ3[train$SJ_Most_3 == "4" & train$SJ_Least_3 == "1" ] <- "4.1"
+train$SJ3[train$SJ_Most_3 == "4" & train$SJ_Least_3 == "2" ] <- "4.2"
+train$SJ3[train$SJ_Most_3 == "4" & train$SJ_Least_3 == "3" ] <- "4.3"
+
+
+train$SJ4[train$SJ_Most_4 == "1" & train$SJ_Least_4 == "2" ] <- "1.2"
+train$SJ4[train$SJ_Most_4 == "1" & train$SJ_Least_4 == "3" ] <- "1.3"
+train$SJ4[train$SJ_Most_4 == "1" & train$SJ_Least_4 == "4" ] <- "1.4"
+train$SJ4[train$SJ_Most_4 == "2" & train$SJ_Least_4 == "1" ] <- "2.1"
+train$SJ4[train$SJ_Most_4 == "2" & train$SJ_Least_4 == "3" ] <- "2.3"
+train$SJ4[train$SJ_Most_4 == "2" & train$SJ_Least_4 == "4" ] <- "2.4"
+train$SJ4[train$SJ_Most_4 == "3" & train$SJ_Least_4 == "1" ] <- "3.1"
+train$SJ4[train$SJ_Most_4 == "3" & train$SJ_Least_4 == "2" ] <- "3.2"
+train$SJ4[train$SJ_Most_4 == "3" & train$SJ_Least_4 == "4" ] <- "3.4"
+train$SJ4[train$SJ_Most_4 == "4" & train$SJ_Least_4 == "1" ] <- "4.1"
+train$SJ4[train$SJ_Most_4 == "4" & train$SJ_Least_4 == "2" ] <- "4.2"
+train$SJ4[train$SJ_Most_4 == "4" & train$SJ_Least_4 == "3" ] <- "4.3"
+
+
+train$SJ5[train$SJ_Most_5 == "1" & train$SJ_Least_5 == "2" ] <- "1.2"
+train$SJ5[train$SJ_Most_5 == "1" & train$SJ_Least_5 == "3" ] <- "1.3"
+train$SJ5[train$SJ_Most_5 == "1" & train$SJ_Least_5 == "4" ] <- "1.4"
+train$SJ5[train$SJ_Most_5 == "2" & train$SJ_Least_5 == "1" ] <- "2.1"
+train$SJ5[train$SJ_Most_5 == "2" & train$SJ_Least_5 == "3" ] <- "2.3"
+train$SJ5[train$SJ_Most_5 == "2" & train$SJ_Least_5 == "4" ] <- "2.4"
+train$SJ5[train$SJ_Most_5 == "3" & train$SJ_Least_5 == "1" ] <- "3.1"
+train$SJ5[train$SJ_Most_5 == "3" & train$SJ_Least_5 == "2" ] <- "3.2"
+train$SJ5[train$SJ_Most_5 == "3" & train$SJ_Least_5 == "4" ] <- "3.4"
+train$SJ5[train$SJ_Most_5 == "4" & train$SJ_Least_5 == "1" ] <- "4.1"
+train$SJ5[train$SJ_Most_5 == "4" & train$SJ_Least_5 == "2" ] <- "4.2"
+train$SJ5[train$SJ_Most_5 == "4" & train$SJ_Least_5 == "3" ] <- "4.3"
+
+
+train$SJ6[train$SJ_Most_6 == "1" & train$SJ_Least_6 == "2" ] <- "1.2"
+train$SJ6[train$SJ_Most_6 == "1" & train$SJ_Least_6 == "3" ] <- "1.3"
+train$SJ6[train$SJ_Most_6 == "1" & train$SJ_Least_6 == "4" ] <- "1.4"
+train$SJ6[train$SJ_Most_6 == "2" & train$SJ_Least_6 == "1" ] <- "2.1"
+train$SJ6[train$SJ_Most_6 == "2" & train$SJ_Least_6 == "3" ] <- "2.3"
+train$SJ6[train$SJ_Most_6 == "2" & train$SJ_Least_6 == "4" ] <- "2.4"
+train$SJ6[train$SJ_Most_6 == "3" & train$SJ_Least_6 == "1" ] <- "3.1"
+train$SJ6[train$SJ_Most_6 == "3" & train$SJ_Least_6 == "2" ] <- "3.2"
+train$SJ6[train$SJ_Most_6 == "3" & train$SJ_Least_6 == "4" ] <- "3.4"
+train$SJ6[train$SJ_Most_6 == "4" & train$SJ_Least_6 == "1" ] <- "4.1"
+train$SJ6[train$SJ_Most_6 == "4" & train$SJ_Least_6 == "2" ] <- "4.2"
+train$SJ6[train$SJ_Most_6 == "4" & train$SJ_Least_6 == "3" ] <- "4.3"
+
+
+train$SJ7[train$SJ_Most_7 == "1" & train$SJ_Least_7 == "2" ] <- "1.2"
+train$SJ7[train$SJ_Most_7 == "1" & train$SJ_Least_7 == "3" ] <- "1.3"
+train$SJ7[train$SJ_Most_7 == "1" & train$SJ_Least_7 == "4" ] <- "1.4"
+train$SJ7[train$SJ_Most_7 == "2" & train$SJ_Least_7 == "1" ] <- "2.1"
+train$SJ7[train$SJ_Most_7 == "2" & train$SJ_Least_7 == "3" ] <- "2.3"
+train$SJ7[train$SJ_Most_7 == "2" & train$SJ_Least_7 == "4" ] <- "2.4"
+train$SJ7[train$SJ_Most_7 == "3" & train$SJ_Least_7 == "1" ] <- "3.1"
+train$SJ7[train$SJ_Most_7 == "3" & train$SJ_Least_7 == "2" ] <- "3.2"
+train$SJ7[train$SJ_Most_7 == "3" & train$SJ_Least_7 == "4" ] <- "3.4"
+train$SJ7[train$SJ_Most_7 == "4" & train$SJ_Least_7 == "1" ] <- "4.1"
+train$SJ7[train$SJ_Most_7 == "4" & train$SJ_Least_7 == "2" ] <- "4.2"
+train$SJ7[train$SJ_Most_7 == "4" & train$SJ_Least_7 == "3" ] <- "4.3"
+
+
+train$SJ8[train$SJ_Most_8 == "1" & train$SJ_Least_8 == "2" ] <- "1.2"
+train$SJ8[train$SJ_Most_8 == "1" & train$SJ_Least_8 == "3" ] <- "1.3"
+train$SJ8[train$SJ_Most_8 == "1" & train$SJ_Least_8 == "4" ] <- "1.4"
+train$SJ8[train$SJ_Most_8 == "2" & train$SJ_Least_8 == "1" ] <- "2.1"
+train$SJ8[train$SJ_Most_8 == "2" & train$SJ_Least_8 == "3" ] <- "2.3"
+train$SJ8[train$SJ_Most_8 == "2" & train$SJ_Least_8 == "4" ] <- "2.4"
+train$SJ8[train$SJ_Most_8 == "3" & train$SJ_Least_8 == "1" ] <- "3.1"
+train$SJ8[train$SJ_Most_8 == "3" & train$SJ_Least_8 == "2" ] <- "3.2"
+train$SJ8[train$SJ_Most_8 == "3" & train$SJ_Least_8 == "4" ] <- "3.4"
+train$SJ8[train$SJ_Most_8 == "4" & train$SJ_Least_8 == "1" ] <- "4.1"
+train$SJ8[train$SJ_Most_8 == "4" & train$SJ_Least_8 == "2" ] <- "4.2"
+train$SJ8[train$SJ_Most_8 == "4" & train$SJ_Least_8 == "3" ] <- "4.3"
+
+
+train$SJ9[train$SJ_Most_9 == "1" & train$SJ_Least_9 == "2" ] <- "1.2"
+train$SJ9[train$SJ_Most_9 == "1" & train$SJ_Least_9 == "3" ] <- "1.3"
+train$SJ9[train$SJ_Most_9 == "1" & train$SJ_Least_9 == "4" ] <- "1.4"
+train$SJ9[train$SJ_Most_9 == "2" & train$SJ_Least_9 == "1" ] <- "2.1"
+train$SJ9[train$SJ_Most_9 == "2" & train$SJ_Least_9 == "3" ] <- "2.3"
+train$SJ9[train$SJ_Most_9 == "2" & train$SJ_Least_9 == "4" ] <- "2.4"
+train$SJ9[train$SJ_Most_9 == "3" & train$SJ_Least_9 == "1" ] <- "3.1"
+train$SJ9[train$SJ_Most_9 == "3" & train$SJ_Least_9 == "2" ] <- "3.2"
+train$SJ9[train$SJ_Most_9 == "3" & train$SJ_Least_9 == "4" ] <- "3.4"
+train$SJ9[train$SJ_Most_9 == "4" & train$SJ_Least_9 == "1" ] <- "4.1"
+train$SJ9[train$SJ_Most_9 == "4" & train$SJ_Least_9 == "2" ] <- "4.2"
+train$SJ9[train$SJ_Most_9 == "4" & train$SJ_Least_9 == "3" ] <- "4.3"
+
+#########################################
+#########################################    Biodata
+#########################################
+
+train$Biodata_01 <- as.factor(as.character(train$Biodata_01))
+train$Biodata_02 <- as.factor(as.character(train$Biodata_02))
+train$Biodata_03 <- as.factor(as.character(train$Biodata_03))
+train$Biodata_04 <- as.factor(as.character(train$Biodata_04))
+train$Biodata_05 <- as.factor(as.character(train$Biodata_05))
+train$Biodata_06 <- as.factor(as.character(train$Biodata_06))
+train$Biodata_07 <- as.factor(as.character(train$Biodata_07))
+train$Biodata_08 <- as.factor(as.character(train$Biodata_08))
+train$Biodata_09 <- as.factor(as.character(train$Biodata_09))
+train$Biodata_10 <- as.factor(as.character(train$Biodata_10))
+train$Biodata_11 <- as.factor(as.character(train$Biodata_11))
+train$Biodata_12 <- as.factor(as.character(train$Biodata_12))
+train$Biodata_13 <- as.factor(as.character(train$Biodata_13))
+train$Biodata_14 <- as.factor(as.character(train$Biodata_14))
+train$Biodata_15 <- as.factor(as.character(train$Biodata_15))
+train$Biodata_16 <- as.factor(as.character(train$Biodata_16))
+train$Biodata_17 <- as.factor(as.character(train$Biodata_17))
+train$Biodata_18 <- as.factor(as.character(train$Biodata_18))
+train$Biodata_19 <- as.factor(as.character(train$Biodata_19))
+train$Biodata_20 <- as.factor(as.character(train$Biodata_20))
+
+#########################################
+#########################################    "PScale" data - variable 75 --> 129
+#########################################
+
+train$PScale01_Q2 <- 5-train$PScale01_Q2
+train$PScale01_Q3 <- 5-train$PScale01_Q3
+train$PScale02_Q2 <- 5-train$PScale02_Q2
+train$PScale03_Q1 <- 5-train$PScale03_Q1
+train$PScale04_Q1 <- 5-train$PScale04_Q1
+train$PScale06_Q3 <- 5-train$PScale06_Q3
+train$PScale06_Q6 <- 5-train$PScale06_Q6
+train$PScale07_Q2 <- 5-train$PScale07_Q2
+train$PScale08_Q2 <- 5-train$PScale08_Q2
+train$PScale08_Q4 <- 5-train$PScale08_Q4
+train$PScale09_Q2 <- 5-train$PScale09_Q2
+train$PScale10_Q3 <- 5-train$PScale10_Q3
+train$PScale10_Q4 <- 5-train$PScale10_Q4
+train$PScale11_Q2 <- 5-train$PScale11_Q2
+train$PScale11_Q3 <- 5-train$PScale11_Q3
+train$PScale12_Q3 <- 5-train$PScale12_Q3
+train$PScale12_Q4 <- 5-train$PScale12_Q4
+train$PScale13_Q3 <- 5-train$PScale13_Q3
+train$PScale13_Q4 <- 5-train$PScale13_Q4
+
+train$PS1 <- rowMeans(train[75:78],na.rm=TRUE)
+train$PS2 <- rowMeans(train[79:82],na.rm=TRUE)
+train$PS3 <- rowMeans(train[83:86],na.rm=TRUE)
+train$PS4 <- rowMeans(train[87:90],na.rm=TRUE)
+train$PS5 <- rowMeans(train[91:94],na.rm=TRUE)
+train$PS6 <- rowMeans(train[95:100],na.rm=TRUE)
+train$PS7 <- rowMeans(train[101:104],na.rm=TRUE)
+train$PS8 <- rowMeans(train[105:108],na.rm=TRUE)
+train$PS9 <- rowMeans(train[109:112],na.rm=TRUE)
+train$PS10 <- rowMeans(train[113:116],na.rm=TRUE)
+train$PS11 <- rowMeans(train[117:120],na.rm=TRUE)
+train$PS12 <- rowMeans(train[121:124],na.rm=TRUE)
+train$PS13 <- rowMeans(train[125:129],na.rm=TRUE)
+
+#########################################
+#########################################    Determining empirical keys (how to score responses) for bio and SJts
+#########################################
+
+mean1.sj1 <- tapply(train$scale, train$SJ1, mean)
+mean2.sj1 <- tapply(train$High_Performer, train$SJ1, mean)
+mean1.sj2 <- tapply(train$scale, train$SJ2, mean)
+mean2.sj2 <- tapply(train$High_Performer, train$SJ2, mean)
+mean1.sj3 <- tapply(train$scale, train$SJ3, mean)
+mean2.sj3 <- tapply(train$High_Performer, train$SJ3, mean)
+mean1.sj4 <- tapply(train$scale, train$SJ4, mean)
+mean2.sj4 <- tapply(train$High_Performer, train$SJ4, mean)
+mean1.sj5 <- tapply(train$scale, train$SJ5, mean)
+mean2.sj5 <- tapply(train$High_Performer, train$SJ5, mean)
+mean1.sj6 <- tapply(train$scale, train$SJ6, mean)
+mean2.sj6 <- tapply(train$High_Performer, train$SJ6, mean)
+mean1.sj7 <- tapply(train$scale, train$SJ7, mean)
+mean2.sj7 <- tapply(train$High_Performer, train$SJ7, mean)
+mean1.sj8 <- tapply(train$scale, train$SJ8, mean)
+mean2.sj8 <- tapply(train$High_Performer, train$SJ8, mean)
+mean1.sj9 <- tapply(train$scale, train$SJ9, mean)
+mean2.sj9 <- tapply(train$High_Performer, train$SJ9, mean)
+
+weights.sj1 <- mean1.sj1*mean2.sj1
+weights.sj2 <- mean1.sj2*mean2.sj2
+weights.sj3 <- mean1.sj3*mean2.sj3
+weights.sj4 <- mean1.sj4*mean2.sj4
+weights.sj5 <- mean1.sj5*mean2.sj5
+weights.sj6 <- mean1.sj6*mean2.sj6
+weights.sj7 <- mean1.sj7*mean2.sj7
+weights.sj8 <- mean1.sj8*mean2.sj8
+weights.sj9 <- mean1.sj9*mean2.sj9
+
+mean1.bio1 <- tapply(train$scale, train$Biodata_01, mean)
+mean2.bio1 <- tapply(train$High_Performer, train$Biodata_01, mean)
+mean1.bio2 <- tapply(train$scale, train$Biodata_02, mean)
+mean2.bio2 <- tapply(train$High_Performer, train$Biodata_02, mean)
+mean1.bio3 <- tapply(train$scale, train$Biodata_03, mean)
+mean2.bio3 <- tapply(train$High_Performer, train$Biodata_03, mean)
+mean1.bio4 <- tapply(train$scale, train$Biodata_04, mean)
+mean2.bio4 <- tapply(train$High_Performer, train$Biodata_04, mean)
+mean1.bio5 <- tapply(train$scale, train$Biodata_05, mean)
+mean2.bio5 <- tapply(train$High_Performer, train$Biodata_05, mean)
+mean1.bio6 <- tapply(train$scale, train$Biodata_06, mean)
+mean2.bio6 <- tapply(train$High_Performer, train$Biodata_06, mean)
+mean1.bio7 <- tapply(train$scale, train$Biodata_07, mean)
+mean2.bio7 <- tapply(train$High_Performer, train$Biodata_07, mean)
+mean1.bio8 <- tapply(train$scale, train$Biodata_08, mean)
+mean2.bio8 <- tapply(train$High_Performer, train$Biodata_08, mean)
+mean1.bio9 <- tapply(train$scale, train$Biodata_09, mean)
+mean2.bio9 <- tapply(train$High_Performer, train$Biodata_09, mean)
+mean1.bio10 <- tapply(train$scale, train$Biodata_10, mean)
+mean2.bio10 <- tapply(train$High_Performer, train$Biodata_10, mean)
+mean1.bio11 <- tapply(train$scale, train$Biodata_11, mean)
+mean2.bio11 <- tapply(train$High_Performer, train$Biodata_11, mean)
+mean1.bio12 <- tapply(train$scale, train$Biodata_12, mean)
+mean2.bio12 <- tapply(train$High_Performer, train$Biodata_12, mean)
+mean1.bio13 <- tapply(train$scale, train$Biodata_13, mean)
+mean2.bio13 <- tapply(train$High_Performer, train$Biodata_13, mean)
+mean1.bio14 <- tapply(train$scale, train$Biodata_14, mean)
+mean2.bio14 <- tapply(train$High_Performer, train$Biodata_14, mean)
+mean1.bio15 <- tapply(train$scale, train$Biodata_15, mean)
+mean2.bio15 <- tapply(train$High_Performer, train$Biodata_15, mean)
+mean1.bio16 <- tapply(train$scale, train$Biodata_16, mean)
+mean2.bio16 <- tapply(train$High_Performer, train$Biodata_16, mean)
+mean1.bio17 <- tapply(train$scale, train$Biodata_17, mean)
+mean2.bio17 <- tapply(train$High_Performer, train$Biodata_17, mean)
+mean1.bio18 <- tapply(train$scale, train$Biodata_18, mean)
+mean2.bio18 <- tapply(train$High_Performer, train$Biodata_18, mean)
+mean1.bio19 <- tapply(train$scale, train$Biodata_19, mean)
+mean2.bio19 <- tapply(train$High_Performer, train$Biodata_19, mean)
+mean1.bio20 <- tapply(train$scale, train$Biodata_20, mean)
+mean2.bio20 <- tapply(train$High_Performer, train$Biodata_20, mean)
+
+weights.bio1 <- mean1.bio1*mean2.bio1
+weights.bio2 <- mean1.bio2*mean2.bio2
+weights.bio3 <- mean1.bio3*mean2.bio3
+weights.bio4 <- mean1.bio4*mean2.bio4
+weights.bio5 <- mean1.bio5*mean2.bio5
+weights.bio6 <- mean1.bio6*mean2.bio6
+weights.bio7 <- mean1.bio7*mean2.bio7
+weights.bio8 <- mean1.bio8*mean2.bio8
+weights.bio9 <- mean1.bio9*mean2.bio9
+weights.bio10 <- mean1.bio10*mean2.bio10
+weights.bio11 <- mean1.bio11*mean2.bio11
+weights.bio12 <- mean1.bio12*mean2.bio12
+weights.bio13 <- mean1.bio13*mean2.bio13
+weights.bio14 <- mean1.bio14*mean2.bio14
+weights.bio15 <- mean1.bio15*mean2.bio15
+weights.bio16 <- mean1.bio16*mean2.bio16
+weights.bio17 <- mean1.bio17*mean2.bio17
+weights.bio18 <- mean1.bio18*mean2.bio18
+weights.bio19 <- mean1.bio19*mean2.bio19
+weights.bio20 <- mean1.bio20*mean2.bio20
+
+train$bio1[train$Biodata_01 == "1"] <- weights.bio1[1]
+train$bio1[train$Biodata_01 == "2"] <- weights.bio1[2]
+train$bio1[train$Biodata_01 == "3"] <- weights.bio1[3]
+train$bio1[train$Biodata_01 == "4"] <- weights.bio1[4]
+train$bio1[train$Biodata_01 == "5"] <- weights.bio1[5]
+train$bio1[train$Biodata_01 == "6"] <- weights.bio1[6]
+
+train$bio2[train$Biodata_02 == "1"] <- weights.bio2[1]
+train$bio2[train$Biodata_02 == "2"] <- weights.bio2[2]
+train$bio2[train$Biodata_02 == "3"] <- weights.bio2[3]
+train$bio2[train$Biodata_02 == "4"] <- weights.bio2[4]
+train$bio2[train$Biodata_02 == "5"] <- weights.bio2[5]
+train$bio2[train$Biodata_02 == "6"] <- weights.bio2[6]
+train$bio2[train$Biodata_02 == "7"] <- weights.bio2[7]
+train$bio2[train$Biodata_02 == "8"] <- weights.bio2[8]
+
+train$bio3[train$Biodata_03 == "1"] <- weights.bio3[1]
+train$bio3[train$Biodata_03 == "2"] <- weights.bio3[2]
+train$bio3[train$Biodata_03 == "3"] <- weights.bio3[3]
+train$bio3[train$Biodata_03 == "4"] <- weights.bio3[4]
+train$bio3[train$Biodata_03 == "5"] <- weights.bio3[5]
+train$bio3[train$Biodata_03 == "6"] <- weights.bio3[6]
+train$bio3[train$Biodata_03 == "7"] <- weights.bio3[7]
+
+train$bio4[train$Biodata_04 == "1"] <- weights.bio4[1]
+train$bio4[train$Biodata_04 == "2"] <- weights.bio4[2]
+train$bio4[train$Biodata_04 == "3"] <- weights.bio4[3]
+train$bio4[train$Biodata_04 == "4"] <- weights.bio4[4]
+train$bio4[train$Biodata_04 == "5"] <- weights.bio4[5]
+train$bio4[train$Biodata_04 == "6"] <- weights.bio4[6]
+train$bio4[train$Biodata_04 == "7"] <- weights.bio4[7]
+train$bio4[train$Biodata_04 == "8"] <- weights.bio4[8]
+
+train$bio5[train$Biodata_05 == "1"] <- weights.bio5[1]
+train$bio5[train$Biodata_05 == "2"] <- weights.bio5[2]
+train$bio5[train$Biodata_05 == "3"] <- weights.bio5[3]
+train$bio5[train$Biodata_05 == "4"] <- weights.bio5[4]
+train$bio5[train$Biodata_05 == "5"] <- weights.bio5[5]
+
+train$bio6[train$Biodata_06 == "1"] <- weights.bio6[1]
+train$bio6[train$Biodata_06 == "2"] <- weights.bio6[2]
+train$bio6[train$Biodata_06 == "3"] <- weights.bio6[3]
+train$bio6[train$Biodata_06 == "4"] <- weights.bio6[4]
+train$bio6[train$Biodata_06 == "5"] <- weights.bio6[5]
+train$bio6[train$Biodata_06 == "6"] <- weights.bio6[6]
+train$bio6[train$Biodata_06 == "7"] <- weights.bio6[7]
+
+train$bio7[train$Biodata_07 == "1"] <- weights.bio7[1]
+train$bio7[train$Biodata_07 == "3"] <- weights.bio7[3]
+train$bio7[train$Biodata_07 == "4"] <- weights.bio7[4]
+train$bio7[train$Biodata_07 == "5"] <- weights.bio7[5]
+train$bio7[train$Biodata_07 == "6"] <- weights.bio7[6]
+
+train$bio8[train$Biodata_08 == "1"] <- weights.bio8[1]
+train$bio8[train$Biodata_08 == "2"] <- weights.bio8[2]
+train$bio8[train$Biodata_08 == "3"] <- weights.bio8[3]
+train$bio8[train$Biodata_08 == "4"] <- weights.bio8[4]
+train$bio8[train$Biodata_08 == "5"] <- weights.bio8[5]
+train$bio8[train$Biodata_08 == "6"] <- weights.bio8[6]
+train$bio8[train$Biodata_08 == "7"] <- weights.bio8[7]
+train$bio8[train$Biodata_08 == "8"] <- weights.bio8[8]
+
+train$bio9[train$Biodata_09 == "1"] <- weights.bio9[1]
+train$bio9[train$Biodata_09 == "2"] <- weights.bio9[2]
+train$bio9[train$Biodata_09 == "3"] <- weights.bio9[3]
+train$bio9[train$Biodata_09 == "4"] <- weights.bio9[4]
+train$bio9[train$Biodata_09 == "5"] <- weights.bio9[5]
+train$bio9[train$Biodata_09 == "6"] <- weights.bio9[6]
+train$bio9[train$Biodata_09 == "7"] <- weights.bio9[7]
+
+train$bio10[train$Biodata_10 == "1"] <- weights.bio10[1]
+train$bio10[train$Biodata_10 == "2"] <- weights.bio10[2]
+train$bio10[train$Biodata_10 == "3"] <- weights.bio10[3]
+train$bio10[train$Biodata_10 == "4"] <- weights.bio10[4]
+train$bio10[train$Biodata_10 == "5"] <- weights.bio10[5]
+train$bio10[train$Biodata_10 == "6"] <- weights.bio10[6]
+train$bio10[train$Biodata_10 == "7"] <- weights.bio10[7]
+
+train$bio11[train$Biodata_11 == "1"] <- weights.bio11[1]
+train$bio11[train$Biodata_11 == "2"] <- weights.bio11[2]
+train$bio11[train$Biodata_11 == "3"] <- weights.bio11[3]
+train$bio11[train$Biodata_11 == "4"] <- weights.bio11[4]
+train$bio11[train$Biodata_11 == "5"] <- weights.bio11[5]
+train$bio11[train$Biodata_11 == "6"] <- weights.bio11[6]
+train$bio11[train$Biodata_11 == "7"] <- weights.bio11[7]
+train$bio11[train$Biodata_11 == "8"] <- weights.bio11[8]
+
+train$bio12[train$Biodata_12 == "1"] <- weights.bio12[1]
+train$bio12[train$Biodata_12 == "2"] <- weights.bio12[2]
+train$bio12[train$Biodata_12 == "3"] <- weights.bio12[3]
+train$bio12[train$Biodata_12 == "4"] <- weights.bio12[4]
+train$bio12[train$Biodata_12 == "5"] <- weights.bio12[5]
+train$bio12[train$Biodata_12 == "6"] <- weights.bio12[6]
+
+train$bio13[train$Biodata_13 == "1"] <- weights.bio13[1]
+train$bio13[train$Biodata_13 == "2"] <- weights.bio13[2]
+train$bio13[train$Biodata_13 == "3"] <- weights.bio13[3]
+train$bio13[train$Biodata_13 == "4"] <- weights.bio13[4]
+train$bio13[train$Biodata_13 == "5"] <- weights.bio13[5]
+train$bio13[train$Biodata_13 == "6"] <- weights.bio13[6]
+
+train$bio14[train$Biodata_14 == "1"] <- weights.bio14[1]
+train$bio14[train$Biodata_14 == "2"] <- weights.bio14[2]
+train$bio14[train$Biodata_14 == "3"] <- weights.bio14[3]
+train$bio14[train$Biodata_14 == "4"] <- weights.bio14[4]
+train$bio14[train$Biodata_14 == "5"] <- weights.bio14[5]
+train$bio14[train$Biodata_14 == "6"] <- weights.bio14[6]
+
+train$bio15[train$Biodata_15 == "1"] <- weights.bio15[1]
+train$bio15[train$Biodata_15 == "2"] <- weights.bio15[2]
+train$bio15[train$Biodata_15 == "3"] <- weights.bio15[3]
+train$bio15[train$Biodata_15 == "4"] <- weights.bio15[4]
+train$bio15[train$Biodata_15 == "5"] <- weights.bio15[5]
+train$bio15[train$Biodata_15 == "6"] <- weights.bio15[6]
+
+train$bio16[train$Biodata_16 == "1"] <- weights.bio16[1]
+train$bio16[train$Biodata_16 == "2"] <- weights.bio16[2]
+train$bio16[train$Biodata_16 == "3"] <- weights.bio16[3]
+train$bio16[train$Biodata_16 == "4"] <- weights.bio16[4]
+train$bio16[train$Biodata_16 == "5"] <- weights.bio16[5]
+train$bio16[train$Biodata_16 == "6"] <- weights.bio16[6]
+
+train$bio17[train$Biodata_17 == "1"] <- weights.bio17[1]
+train$bio17[train$Biodata_17 == "3"] <- weights.bio17[3]
+train$bio17[train$Biodata_17 == "4"] <- weights.bio17[4]
+train$bio17[train$Biodata_17 == "5"] <- weights.bio17[5]
+train$bio17[train$Biodata_17 == "6"] <- weights.bio17[6]
+train$bio17[train$Biodata_17 == "7"] <- weights.bio17[7]
+
+train$bio18[train$Biodata_18 == "1"] <- weights.bio18[1]
+train$bio18[train$Biodata_18 == "2"] <- weights.bio18[2]
+train$bio18[train$Biodata_18 == "3"] <- weights.bio18[3]
+train$bio18[train$Biodata_18 == "4"] <- weights.bio18[4]
+train$bio18[train$Biodata_18 == "5"] <- weights.bio18[5]
+train$bio18[train$Biodata_18 == "6"] <- weights.bio18[6]
+train$bio18[train$Biodata_18 == "7"] <- weights.bio18[7]
+
+train$bio19[train$Biodata_19 == "1"] <- weights.bio19[1]
+train$bio19[train$Biodata_19 == "2"] <- weights.bio19[2]
+train$bio19[train$Biodata_19 == "3"] <- weights.bio19[3]
+train$bio19[train$Biodata_19 == "4"] <- weights.bio19[4]
+train$bio19[train$Biodata_19 == "5"] <- weights.bio19[5]
+train$bio19[train$Biodata_19 == "6"] <- weights.bio19[6]
+train$bio19[train$Biodata_19 == "7"] <- weights.bio19[7]
+
+train$bio20[train$Biodata_20 == "1"] <- weights.bio20[1]
+train$bio20[train$Biodata_20 == "2"] <- weights.bio20[2]
+train$bio20[train$Biodata_20 == "3"] <- weights.bio20[3]
+train$bio20[train$Biodata_20 == "4"] <- weights.bio20[4]
+train$bio20[train$Biodata_20 == "5"] <- weights.bio20[5]
+train$bio20[train$Biodata_20 == "6"] <- weights.bio20[6]
+
+train$bio_scale <- rowMeans(train[155:174], na.rm=TRUE)
+
+train$SJ1.score[train$SJ_Most_1 == "1" & train$SJ_Least_1 == "2" ] <- weights.sj1[1]
+train$SJ1.score[train$SJ_Most_1 == "1" & train$SJ_Least_1 == "3" ] <- weights.sj1[2]
+train$SJ1.score[train$SJ_Most_1 == "1" & train$SJ_Least_1 == "4" ] <- weights.sj1[3]
+train$SJ1.score[train$SJ_Most_1 == "2" & train$SJ_Least_1 == "1" ] <- weights.sj1[4]
+train$SJ1.score[train$SJ_Most_1 == "2" & train$SJ_Least_1 == "3" ] <- weights.sj1[5]
+train$SJ1.score[train$SJ_Most_1 == "2" & train$SJ_Least_1 == "4" ] <- weights.sj1[6]
+train$SJ1.score[train$SJ_Most_1 == "3" & train$SJ_Least_1 == "1" ] <- weights.sj1[7]
+train$SJ1.score[train$SJ_Most_1 == "3" & train$SJ_Least_1 == "2" ] <- weights.sj1[8]
+train$SJ1.score[train$SJ_Most_1 == "3" & train$SJ_Least_1 == "4" ] <- weights.sj1[9]
+train$SJ1.score[train$SJ_Most_1 == "4" & train$SJ_Least_1 == "1" ] <- weights.sj1[10]
+train$SJ1.score[train$SJ_Most_1 == "4" & train$SJ_Least_1 == "2" ] <- weights.sj1[11]
+train$SJ1.score[train$SJ_Most_1 == "4" & train$SJ_Least_1 == "3" ] <- weights.sj1[12]
+
+train$SJ2.score[train$SJ_Most_2 == "1" & train$SJ_Least_2 == "2" ] <- weights.sj2[1]
+train$SJ2.score[train$SJ_Most_2 == "1" & train$SJ_Least_2 == "3" ] <- weights.sj2[2]
+train$SJ2.score[train$SJ_Most_2 == "1" & train$SJ_Least_2 == "4" ] <- weights.sj2[3]
+train$SJ2.score[train$SJ_Most_2 == "2" & train$SJ_Least_2 == "1" ] <- weights.sj2[4]
+train$SJ2.score[train$SJ_Most_2 == "2" & train$SJ_Least_2 == "3" ] <- weights.sj2[5]
+train$SJ2.score[train$SJ_Most_2 == "2" & train$SJ_Least_2 == "4" ] <- weights.sj2[6]
+train$SJ2.score[train$SJ_Most_2 == "3" & train$SJ_Least_2 == "1" ] <- weights.sj2[7]
+train$SJ2.score[train$SJ_Most_2 == "3" & train$SJ_Least_2 == "2" ] <- weights.sj2[8]
+train$SJ2.score[train$SJ_Most_2 == "3" & train$SJ_Least_2 == "4" ] <- weights.sj2[9]
+train$SJ2.score[train$SJ_Most_2 == "4" & train$SJ_Least_2 == "1" ] <- weights.sj2[10]
+train$SJ2.score[train$SJ_Most_2 == "4" & train$SJ_Least_2 == "2" ] <- weights.sj2[11]
+train$SJ2.score[train$SJ_Most_2 == "4" & train$SJ_Least_2 == "3" ] <- weights.sj2[12]
+
+train$SJ3.score[train$SJ_Most_3 == "1" & train$SJ_Least_3 == "2" ] <- weights.sj3[1]
+train$SJ3.score[train$SJ_Most_3 == "1" & train$SJ_Least_3 == "3" ] <- weights.sj3[2]
+train$SJ3.score[train$SJ_Most_3 == "1" & train$SJ_Least_3 == "4" ] <- weights.sj3[3]
+train$SJ3.score[train$SJ_Most_3 == "2" & train$SJ_Least_3 == "1" ] <- weights.sj3[4]
+train$SJ3.score[train$SJ_Most_3 == "2" & train$SJ_Least_3 == "3" ] <- weights.sj3[5]
+train$SJ3.score[train$SJ_Most_3 == "2" & train$SJ_Least_3 == "4" ] <- weights.sj3[6]
+train$SJ3.score[train$SJ_Most_3 == "3" & train$SJ_Least_3 == "1" ] <- weights.sj3[7]
+train$SJ3.score[train$SJ_Most_3 == "3" & train$SJ_Least_3 == "2" ] <- weights.sj3[8]
+train$SJ3.score[train$SJ_Most_3 == "3" & train$SJ_Least_3 == "4" ] <- weights.sj3[9]
+train$SJ3.score[train$SJ_Most_3 == "4" & train$SJ_Least_3 == "1" ] <- weights.sj3[10]
+train$SJ3.score[train$SJ_Most_3 == "4" & train$SJ_Least_3 == "2" ] <- weights.sj3[11]
+train$SJ3.score[train$SJ_Most_3 == "4" & train$SJ_Least_3 == "3" ] <- weights.sj3[12]
+
+train$SJ4.score[train$SJ_Most_4 == "1" & train$SJ_Least_4 == "2" ] <- weights.sj4[1]
+train$SJ4.score[train$SJ_Most_4 == "1" & train$SJ_Least_4 == "3" ] <- weights.sj4[2]
+train$SJ4.score[train$SJ_Most_4 == "1" & train$SJ_Least_4 == "4" ] <- weights.sj4[3]
+train$SJ4.score[train$SJ_Most_4 == "2" & train$SJ_Least_4 == "1" ] <- weights.sj4[4]
+train$SJ4.score[train$SJ_Most_4 == "2" & train$SJ_Least_4 == "3" ] <- weights.sj4[5]
+train$SJ4.score[train$SJ_Most_4 == "2" & train$SJ_Least_4 == "4" ] <- weights.sj4[6]
+train$SJ4.score[train$SJ_Most_4 == "3" & train$SJ_Least_4 == "1" ] <- weights.sj4[7]
+train$SJ4.score[train$SJ_Most_4 == "3" & train$SJ_Least_4 == "2" ] <- weights.sj4[8]
+train$SJ4.score[train$SJ_Most_4 == "3" & train$SJ_Least_4 == "4" ] <- weights.sj4[9]
+train$SJ4.score[train$SJ_Most_4 == "4" & train$SJ_Least_4 == "1" ] <- weights.sj4[10]
+train$SJ4.score[train$SJ_Most_4 == "4" & train$SJ_Least_4 == "2" ] <- weights.sj4[11]
+train$SJ4.score[train$SJ_Most_4 == "4" & train$SJ_Least_4 == "3" ] <- weights.sj4[12]
+
+train$SJ5.score[train$SJ_Most_5 == "1" & train$SJ_Least_5 == "2" ] <- weights.sj5[1]
+train$SJ5.score[train$SJ_Most_5 == "1" & train$SJ_Least_5 == "3" ] <- weights.sj5[2]
+train$SJ5.score[train$SJ_Most_5 == "1" & train$SJ_Least_5 == "4" ] <- weights.sj5[3]
+train$SJ5.score[train$SJ_Most_5 == "2" & train$SJ_Least_5 == "1" ] <- weights.sj5[4]
+train$SJ5.score[train$SJ_Most_5 == "2" & train$SJ_Least_5 == "3" ] <- weights.sj5[5]
+train$SJ5.score[train$SJ_Most_5 == "2" & train$SJ_Least_5 == "4" ] <- weights.sj5[6]
+train$SJ5.score[train$SJ_Most_5 == "3" & train$SJ_Least_5 == "1" ] <- weights.sj5[7]
+train$SJ5.score[train$SJ_Most_5 == "3" & train$SJ_Least_5 == "2" ] <- weights.sj5[8]
+train$SJ5.score[train$SJ_Most_5 == "3" & train$SJ_Least_5 == "4" ] <- weights.sj5[9]
+train$SJ5.score[train$SJ_Most_5 == "4" & train$SJ_Least_5 == "1" ] <- weights.sj5[10]
+train$SJ5.score[train$SJ_Most_5 == "4" & train$SJ_Least_5 == "2" ] <- weights.sj5[11]
+train$SJ5.score[train$SJ_Most_5 == "4" & train$SJ_Least_5 == "3" ] <- weights.sj5[12]
+
+train$SJ6.score[train$SJ_Most_6 == "1" & train$SJ_Least_6 == "2" ] <- weights.sj6[1]
+train$SJ6.score[train$SJ_Most_6 == "1" & train$SJ_Least_6 == "3" ] <- weights.sj6[2]
+train$SJ6.score[train$SJ_Most_6 == "1" & train$SJ_Least_6 == "4" ] <- weights.sj6[3]
+train$SJ6.score[train$SJ_Most_6 == "2" & train$SJ_Least_6 == "1" ] <- weights.sj6[4]
+train$SJ6.score[train$SJ_Most_6 == "2" & train$SJ_Least_6 == "3" ] <- weights.sj6[5]
+train$SJ6.score[train$SJ_Most_6 == "2" & train$SJ_Least_6 == "4" ] <- weights.sj6[6]
+train$SJ6.score[train$SJ_Most_6 == "3" & train$SJ_Least_6 == "1" ] <- weights.sj6[7]
+train$SJ6.score[train$SJ_Most_6 == "3" & train$SJ_Least_6 == "2" ] <- weights.sj6[8]
+train$SJ6.score[train$SJ_Most_6 == "3" & train$SJ_Least_6 == "4" ] <- weights.sj6[9]
+train$SJ6.score[train$SJ_Most_6 == "4" & train$SJ_Least_6 == "1" ] <- weights.sj6[10]
+train$SJ6.score[train$SJ_Most_6 == "4" & train$SJ_Least_6 == "2" ] <- weights.sj6[11]
+train$SJ6.score[train$SJ_Most_6 == "4" & train$SJ_Least_6 == "3" ] <- weights.sj6[12]
+
+train$SJ7.score[train$SJ_Most_7 == "1" & train$SJ_Least_7 == "2" ] <- weights.sj7[1]
+train$SJ7.score[train$SJ_Most_7 == "1" & train$SJ_Least_7 == "3" ] <- weights.sj7[2]
+train$SJ7.score[train$SJ_Most_7 == "1" & train$SJ_Least_7 == "4" ] <- weights.sj7[3]
+train$SJ7.score[train$SJ_Most_7 == "2" & train$SJ_Least_7 == "1" ] <- weights.sj7[4]
+train$SJ7.score[train$SJ_Most_7 == "2" & train$SJ_Least_7 == "3" ] <- weights.sj7[5]
+train$SJ7.score[train$SJ_Most_7 == "2" & train$SJ_Least_7 == "4" ] <- weights.sj7[6]
+train$SJ7.score[train$SJ_Most_7 == "3" & train$SJ_Least_7 == "1" ] <- weights.sj7[7]
+train$SJ7.score[train$SJ_Most_7 == "3" & train$SJ_Least_7 == "2" ] <- weights.sj7[8]
+train$SJ7.score[train$SJ_Most_7 == "3" & train$SJ_Least_7 == "4" ] <- weights.sj7[9]
+train$SJ7.score[train$SJ_Most_7 == "4" & train$SJ_Least_7 == "1" ] <- weights.sj7[10]
+train$SJ7.score[train$SJ_Most_7 == "4" & train$SJ_Least_7 == "2" ] <- weights.sj7[11]
+train$SJ7.score[train$SJ_Most_7 == "4" & train$SJ_Least_7 == "3" ] <- weights.sj7[12]
+
+train$SJ8.score[train$SJ_Most_8 == "1" & train$SJ_Least_8 == "2" ] <- weights.sj8[1]
+train$SJ8.score[train$SJ_Most_8 == "1" & train$SJ_Least_8 == "3" ] <- weights.sj8[2]
+train$SJ8.score[train$SJ_Most_8 == "1" & train$SJ_Least_8 == "4" ] <- weights.sj8[3]
+train$SJ8.score[train$SJ_Most_8 == "2" & train$SJ_Least_8 == "1" ] <- weights.sj8[4]
+train$SJ8.score[train$SJ_Most_8 == "2" & train$SJ_Least_8 == "3" ] <- weights.sj8[5]
+train$SJ8.score[train$SJ_Most_8 == "2" & train$SJ_Least_8 == "4" ] <- weights.sj8[6]
+train$SJ8.score[train$SJ_Most_8 == "3" & train$SJ_Least_8 == "1" ] <- weights.sj8[7]
+train$SJ8.score[train$SJ_Most_8 == "3" & train$SJ_Least_8 == "2" ] <- weights.sj8[8]
+train$SJ8.score[train$SJ_Most_8 == "3" & train$SJ_Least_8 == "4" ] <- weights.sj8[9]
+train$SJ8.score[train$SJ_Most_8 == "4" & train$SJ_Least_8 == "1" ] <- weights.sj8[10]
+train$SJ8.score[train$SJ_Most_8 == "4" & train$SJ_Least_8 == "2" ] <- weights.sj8[11]
+train$SJ8.score[train$SJ_Most_8 == "4" & train$SJ_Least_8 == "3" ] <- weights.sj8[12]
+
+train$SJ9.score[train$SJ_Most_9 == "1" & train$SJ_Least_9 == "2" ] <- weights.sj9[1]
+train$SJ9.score[train$SJ_Most_9 == "1" & train$SJ_Least_9 == "3" ] <- weights.sj9[2]
+train$SJ9.score[train$SJ_Most_9 == "1" & train$SJ_Least_9 == "4" ] <- weights.sj9[3]
+train$SJ9.score[train$SJ_Most_9 == "2" & train$SJ_Least_9 == "1" ] <- weights.sj9[4]
+train$SJ9.score[train$SJ_Most_9 == "2" & train$SJ_Least_9 == "3" ] <- weights.sj9[5]
+train$SJ9.score[train$SJ_Most_9 == "2" & train$SJ_Least_9 == "4" ] <- weights.sj9[6]
+train$SJ9.score[train$SJ_Most_9 == "3" & train$SJ_Least_9 == "1" ] <- weights.sj9[7]
+train$SJ9.score[train$SJ_Most_9 == "3" & train$SJ_Least_9 == "2" ] <- weights.sj9[8]
+train$SJ9.score[train$SJ_Most_9 == "3" & train$SJ_Least_9 == "4" ] <- weights.sj9[9]
+train$SJ9.score[train$SJ_Most_9 == "4" & train$SJ_Least_9 == "1" ] <- weights.sj9[10]
+train$SJ9.score[train$SJ_Most_9 == "4" & train$SJ_Least_9 == "2" ] <- weights.sj9[11]
+train$SJ9.score[train$SJ_Most_9 == "4" & train$SJ_Least_9 == "3" ] <- weights.sj9[12]
+
+#########################################
+#########################################    No need to empirically key latency or PScale scores
+#########################################
+
+train$latency <- rowMeans(train[c(12,15,18,21,24,27,30,33,36)])
+
+train$PScale1 <- train$PS1  ## Only doing this to keep all predictors at the same position (end of datafile)
+train$PScale2 <- train$PS2
+train$PScale3 <- train$PS3
+train$PScale4 <- train$PS4
+train$PScale5 <- train$PS5
+train$PScale6 <- train$PS6
+train$PScale7 <- train$PS7
+train$PScale8 <- train$PS8
+train$PScale9 <- train$PS9
+train$PScale10 <- train$PS10
+train$PScale11 <- train$PS11
+train$PScale12 <- train$PS12
+train$PScale13 <- train$PS13
+
+#########################################
+#########################################    Simplest regression using scored data
+#########################################
+
+test <- lm(scale ~ PScale1+PScale2+PScale3+PScale4+PScale5+PScale6+PScale7+PScale8+PScale9+PScale10+PScale11+PScale12+PScale13+
+             bio_scale+SJ1.score+SJ2.score+SJ3.score+SJ4.score+SJ5.score+SJ6.score+SJ7.score+SJ8.score+SJ9.score+latency, train)
+summary(test)
+
+#########################################
+#########################################    Simplified data
+#########################################
+
+temp <- train[c(1,7:9,131,175:198)]
+write.csv(temp, "scale_scores.csv")
+
+```
+
+## Method
+
+We aggregated across the five scaled (1 $\rightarrow$ 5) DVs (see correlation matrix) and kept the binary DV separate. Conservative screening excluded intermediate DV values (e.g., a "1.5" on the 1 $\rightarrow$ 5 ordinal scale) which resulted in a training data sample size of `r format(nrow(temp),big.mark=",",scientific=FALSE)`.
+
+```{r hists, echo=FALSE, warning=FALSE, fig.cap="Figure 1. Histograms of scaled DVs"}
+train <- read.csv("train.csv")
+par(mfrow=c(2,3))
+hist(train$Overall_Rating, col="darkorchid")
+hist(train$Technical_Skills, col="darkorchid1")
+hist(train$Teamwork, col="darkorchid2")
+hist(train$Customer_Service, col="darkorchid3")
+hist(train$Hire_Again, col="darkorchid4")
+```
+
+```{r ggscatters, echo=FALSE, warning=FALSE, message=FALSE}
+
+library(ggplot2)
+library(GGally) ## ggpairs function
+ggpairs(data=train, columns=2:9, title="Ratings (Scaled and Binary) as well as protected class")
+
+
+```
+
+```{r validate, include=FALSE}
+
+data <- read.csv("participant_dev.csv")
+
+train2 <- data[,-122]
+
+#########################################
+#########################################    SJTs
+#########################################
+
+train2$SJ_Most_1 <- as.factor(as.character(train2$SJ_Most_1))
+train2$SJ_Least_1 <- as.factor(as.character(train2$SJ_Least_1))
+train2$SJ_Most_2 <- as.factor(as.character(train2$SJ_Most_2))
+train2$SJ_Least_2 <- as.factor(as.character(train2$SJ_Least_2))
+train2$SJ_Most_3 <- as.factor(as.character(train2$SJ_Most_3))
+train2$SJ_Least_3 <- as.factor(as.character(train2$SJ_Least_3))
+train2$SJ_Most_4 <- as.factor(as.character(train2$SJ_Most_4))
+train2$SJ_Least_4 <- as.factor(as.character(train2$SJ_Least_4))
+train2$SJ_Most_5 <- as.factor(as.character(train2$SJ_Most_5))
+train2$SJ_Least_5 <- as.factor(as.character(train2$SJ_Least_5))
+train2$SJ_Most_6 <- as.factor(as.character(train2$SJ_Most_6))
+train2$SJ_Least_6 <- as.factor(as.character(train2$SJ_Least_6))
+train2$SJ_Most_7 <- as.factor(as.character(train2$SJ_Most_7))
+train2$SJ_Least_7 <- as.factor(as.character(train2$SJ_Least_7))
+train2$SJ_Most_8 <- as.factor(as.character(train2$SJ_Most_8))
+train2$SJ_Least_8 <- as.factor(as.character(train2$SJ_Least_8))
+train2$SJ_Most_9 <- as.factor(as.character(train2$SJ_Most_9))
+train2$SJ_Least_9 <- as.factor(as.character(train2$SJ_Least_9))
+
+train2$SJ1[train2$SJ_Most_1 == "1" & train2$SJ_Least_1 == "2" ] <- "1.2"
+train2$SJ1[train2$SJ_Most_1 == "1" & train2$SJ_Least_1 == "3" ] <- "1.3"
+train2$SJ1[train2$SJ_Most_1 == "1" & train2$SJ_Least_1 == "4" ] <- "1.4"
+train2$SJ1[train2$SJ_Most_1 == "2" & train2$SJ_Least_1 == "1" ] <- "2.1"
+train2$SJ1[train2$SJ_Most_1 == "2" & train2$SJ_Least_1 == "3" ] <- "2.3"
+train2$SJ1[train2$SJ_Most_1 == "2" & train2$SJ_Least_1 == "4" ] <- "2.4"
+train2$SJ1[train2$SJ_Most_1 == "3" & train2$SJ_Least_1 == "1" ] <- "3.1"
+train2$SJ1[train2$SJ_Most_1 == "3" & train2$SJ_Least_1 == "2" ] <- "3.2"
+train2$SJ1[train2$SJ_Most_1 == "3" & train2$SJ_Least_1 == "4" ] <- "3.4"
+train2$SJ1[train2$SJ_Most_1 == "4" & train2$SJ_Least_1 == "1" ] <- "4.1"
+train2$SJ1[train2$SJ_Most_1 == "4" & train2$SJ_Least_1 == "2" ] <- "4.2"
+train2$SJ1[train2$SJ_Most_1 == "4" & train2$SJ_Least_1 == "3" ] <- "4.3"
+
+
+train2$SJ2[train2$SJ_Most_2 == "1" & train2$SJ_Least_2 == "2" ] <- "1.2"
+train2$SJ2[train2$SJ_Most_2 == "1" & train2$SJ_Least_2 == "3" ] <- "1.3"
+train2$SJ2[train2$SJ_Most_2 == "1" & train2$SJ_Least_2 == "4" ] <- "1.4"
+train2$SJ2[train2$SJ_Most_2 == "2" & train2$SJ_Least_2 == "1" ] <- "2.1"
+train2$SJ2[train2$SJ_Most_2 == "2" & train2$SJ_Least_2 == "3" ] <- "2.3"
+train2$SJ2[train2$SJ_Most_2 == "2" & train2$SJ_Least_2 == "4" ] <- "2.4"
+train2$SJ2[train2$SJ_Most_2 == "3" & train2$SJ_Least_2 == "1" ] <- "3.1"
+train2$SJ2[train2$SJ_Most_2 == "3" & train2$SJ_Least_2 == "2" ] <- "3.2"
+train2$SJ2[train2$SJ_Most_2 == "3" & train2$SJ_Least_2 == "4" ] <- "3.4"
+train2$SJ2[train2$SJ_Most_2 == "4" & train2$SJ_Least_2 == "1" ] <- "4.1"
+train2$SJ2[train2$SJ_Most_2 == "4" & train2$SJ_Least_2 == "2" ] <- "4.2"
+train2$SJ2[train2$SJ_Most_2 == "4" & train2$SJ_Least_2 == "3" ] <- "4.3"
+
+train2$SJ3[train2$SJ_Most_3 == "1" & train2$SJ_Least_3 == "2" ] <- "1.2"
+train2$SJ3[train2$SJ_Most_3 == "1" & train2$SJ_Least_3 == "3" ] <- "1.3"
+train2$SJ3[train2$SJ_Most_3 == "1" & train2$SJ_Least_3 == "4" ] <- "1.4"
+train2$SJ3[train2$SJ_Most_3 == "2" & train2$SJ_Least_3 == "1" ] <- "2.1"
+train2$SJ3[train2$SJ_Most_3 == "2" & train2$SJ_Least_3 == "3" ] <- "2.3"
+train2$SJ3[train2$SJ_Most_3 == "2" & train2$SJ_Least_3 == "4" ] <- "2.4"
+train2$SJ3[train2$SJ_Most_3 == "3" & train2$SJ_Least_3 == "1" ] <- "3.1"
+train2$SJ3[train2$SJ_Most_3 == "3" & train2$SJ_Least_3 == "2" ] <- "3.2"
+train2$SJ3[train2$SJ_Most_3 == "3" & train2$SJ_Least_3 == "4" ] <- "3.4"
+train2$SJ3[train2$SJ_Most_3 == "4" & train2$SJ_Least_3 == "1" ] <- "4.1"
+train2$SJ3[train2$SJ_Most_3 == "4" & train2$SJ_Least_3 == "2" ] <- "4.2"
+train2$SJ3[train2$SJ_Most_3 == "4" & train2$SJ_Least_3 == "3" ] <- "4.3"
+
+
+train2$SJ4[train2$SJ_Most_4 == "1" & train2$SJ_Least_4 == "2" ] <- "1.2"
+train2$SJ4[train2$SJ_Most_4 == "1" & train2$SJ_Least_4 == "3" ] <- "1.3"
+train2$SJ4[train2$SJ_Most_4 == "1" & train2$SJ_Least_4 == "4" ] <- "1.4"
+train2$SJ4[train2$SJ_Most_4 == "2" & train2$SJ_Least_4 == "1" ] <- "2.1"
+train2$SJ4[train2$SJ_Most_4 == "2" & train2$SJ_Least_4 == "3" ] <- "2.3"
+train2$SJ4[train2$SJ_Most_4 == "2" & train2$SJ_Least_4 == "4" ] <- "2.4"
+train2$SJ4[train2$SJ_Most_4 == "3" & train2$SJ_Least_4 == "1" ] <- "3.1"
+train2$SJ4[train2$SJ_Most_4 == "3" & train2$SJ_Least_4 == "2" ] <- "3.2"
+train2$SJ4[train2$SJ_Most_4 == "3" & train2$SJ_Least_4 == "4" ] <- "3.4"
+train2$SJ4[train2$SJ_Most_4 == "4" & train2$SJ_Least_4 == "1" ] <- "4.1"
+train2$SJ4[train2$SJ_Most_4 == "4" & train2$SJ_Least_4 == "2" ] <- "4.2"
+train2$SJ4[train2$SJ_Most_4 == "4" & train2$SJ_Least_4 == "3" ] <- "4.3"
+
+
+train2$SJ5[train2$SJ_Most_5 == "1" & train2$SJ_Least_5 == "2" ] <- "1.2"
+train2$SJ5[train2$SJ_Most_5 == "1" & train2$SJ_Least_5 == "3" ] <- "1.3"
+train2$SJ5[train2$SJ_Most_5 == "1" & train2$SJ_Least_5 == "4" ] <- "1.4"
+train2$SJ5[train2$SJ_Most_5 == "2" & train2$SJ_Least_5 == "1" ] <- "2.1"
+train2$SJ5[train2$SJ_Most_5 == "2" & train2$SJ_Least_5 == "3" ] <- "2.3"
+train2$SJ5[train2$SJ_Most_5 == "2" & train2$SJ_Least_5 == "4" ] <- "2.4"
+train2$SJ5[train2$SJ_Most_5 == "3" & train2$SJ_Least_5 == "1" ] <- "3.1"
+train2$SJ5[train2$SJ_Most_5 == "3" & train2$SJ_Least_5 == "2" ] <- "3.2"
+train2$SJ5[train2$SJ_Most_5 == "3" & train2$SJ_Least_5 == "4" ] <- "3.4"
+train2$SJ5[train2$SJ_Most_5 == "4" & train2$SJ_Least_5 == "1" ] <- "4.1"
+train2$SJ5[train2$SJ_Most_5 == "4" & train2$SJ_Least_5 == "2" ] <- "4.2"
+train2$SJ5[train2$SJ_Most_5 == "4" & train2$SJ_Least_5 == "3" ] <- "4.3"
+
+
+train2$SJ6[train2$SJ_Most_6 == "1" & train2$SJ_Least_6 == "2" ] <- "1.2"
+train2$SJ6[train2$SJ_Most_6 == "1" & train2$SJ_Least_6 == "3" ] <- "1.3"
+train2$SJ6[train2$SJ_Most_6 == "1" & train2$SJ_Least_6 == "4" ] <- "1.4"
+train2$SJ6[train2$SJ_Most_6 == "2" & train2$SJ_Least_6 == "1" ] <- "2.1"
+train2$SJ6[train2$SJ_Most_6 == "2" & train2$SJ_Least_6 == "3" ] <- "2.3"
+train2$SJ6[train2$SJ_Most_6 == "2" & train2$SJ_Least_6 == "4" ] <- "2.4"
+train2$SJ6[train2$SJ_Most_6 == "3" & train2$SJ_Least_6 == "1" ] <- "3.1"
+train2$SJ6[train2$SJ_Most_6 == "3" & train2$SJ_Least_6 == "2" ] <- "3.2"
+train2$SJ6[train2$SJ_Most_6 == "3" & train2$SJ_Least_6 == "4" ] <- "3.4"
+train2$SJ6[train2$SJ_Most_6 == "4" & train2$SJ_Least_6 == "1" ] <- "4.1"
+train2$SJ6[train2$SJ_Most_6 == "4" & train2$SJ_Least_6 == "2" ] <- "4.2"
+train2$SJ6[train2$SJ_Most_6 == "4" & train2$SJ_Least_6 == "3" ] <- "4.3"
+
+
+train2$SJ7[train2$SJ_Most_7 == "1" & train2$SJ_Least_7 == "2" ] <- "1.2"
+train2$SJ7[train2$SJ_Most_7 == "1" & train2$SJ_Least_7 == "3" ] <- "1.3"
+train2$SJ7[train2$SJ_Most_7 == "1" & train2$SJ_Least_7 == "4" ] <- "1.4"
+train2$SJ7[train2$SJ_Most_7 == "2" & train2$SJ_Least_7 == "1" ] <- "2.1"
+train2$SJ7[train2$SJ_Most_7 == "2" & train2$SJ_Least_7 == "3" ] <- "2.3"
+train2$SJ7[train2$SJ_Most_7 == "2" & train2$SJ_Least_7 == "4" ] <- "2.4"
+train2$SJ7[train2$SJ_Most_7 == "3" & train2$SJ_Least_7 == "1" ] <- "3.1"
+train2$SJ7[train2$SJ_Most_7 == "3" & train2$SJ_Least_7 == "2" ] <- "3.2"
+train2$SJ7[train2$SJ_Most_7 == "3" & train2$SJ_Least_7 == "4" ] <- "3.4"
+train2$SJ7[train2$SJ_Most_7 == "4" & train2$SJ_Least_7 == "1" ] <- "4.1"
+train2$SJ7[train2$SJ_Most_7 == "4" & train2$SJ_Least_7 == "2" ] <- "4.2"
+train2$SJ7[train2$SJ_Most_7 == "4" & train2$SJ_Least_7 == "3" ] <- "4.3"
+
+
+train2$SJ8[train2$SJ_Most_8 == "1" & train2$SJ_Least_8 == "2" ] <- "1.2"
+train2$SJ8[train2$SJ_Most_8 == "1" & train2$SJ_Least_8 == "3" ] <- "1.3"
+train2$SJ8[train2$SJ_Most_8 == "1" & train2$SJ_Least_8 == "4" ] <- "1.4"
+train2$SJ8[train2$SJ_Most_8 == "2" & train2$SJ_Least_8 == "1" ] <- "2.1"
+train2$SJ8[train2$SJ_Most_8 == "2" & train2$SJ_Least_8 == "3" ] <- "2.3"
+train2$SJ8[train2$SJ_Most_8 == "2" & train2$SJ_Least_8 == "4" ] <- "2.4"
+train2$SJ8[train2$SJ_Most_8 == "3" & train2$SJ_Least_8 == "1" ] <- "3.1"
+train2$SJ8[train2$SJ_Most_8 == "3" & train2$SJ_Least_8 == "2" ] <- "3.2"
+train2$SJ8[train2$SJ_Most_8 == "3" & train2$SJ_Least_8 == "4" ] <- "3.4"
+train2$SJ8[train2$SJ_Most_8 == "4" & train2$SJ_Least_8 == "1" ] <- "4.1"
+train2$SJ8[train2$SJ_Most_8 == "4" & train2$SJ_Least_8 == "2" ] <- "4.2"
+train2$SJ8[train2$SJ_Most_8 == "4" & train2$SJ_Least_8 == "3" ] <- "4.3"
+
+
+train2$SJ9[train2$SJ_Most_9 == "1" & train2$SJ_Least_9 == "2" ] <- "1.2"
+train2$SJ9[train2$SJ_Most_9 == "1" & train2$SJ_Least_9 == "3" ] <- "1.3"
+train2$SJ9[train2$SJ_Most_9 == "1" & train2$SJ_Least_9 == "4" ] <- "1.4"
+train2$SJ9[train2$SJ_Most_9 == "2" & train2$SJ_Least_9 == "1" ] <- "2.1"
+train2$SJ9[train2$SJ_Most_9 == "2" & train2$SJ_Least_9 == "3" ] <- "2.3"
+train2$SJ9[train2$SJ_Most_9 == "2" & train2$SJ_Least_9 == "4" ] <- "2.4"
+train2$SJ9[train2$SJ_Most_9 == "3" & train2$SJ_Least_9 == "1" ] <- "3.1"
+train2$SJ9[train2$SJ_Most_9 == "3" & train2$SJ_Least_9 == "2" ] <- "3.2"
+train2$SJ9[train2$SJ_Most_9 == "3" & train2$SJ_Least_9 == "4" ] <- "3.4"
+train2$SJ9[train2$SJ_Most_9 == "4" & train2$SJ_Least_9 == "1" ] <- "4.1"
+train2$SJ9[train2$SJ_Most_9 == "4" & train2$SJ_Least_9 == "2" ] <- "4.2"
+train2$SJ9[train2$SJ_Most_9 == "4" & train2$SJ_Least_9 == "3" ] <- "4.3"
+
+#########################################
+#########################################    Biodata
+#########################################
+
+train2$Biodata_01 <- as.factor(as.character(train2$Biodata_01))
+train2$Biodata_02 <- as.factor(as.character(train2$Biodata_02))
+train2$Biodata_03 <- as.factor(as.character(train2$Biodata_03))
+train2$Biodata_04 <- as.factor(as.character(train2$Biodata_04))
+train2$Biodata_05 <- as.factor(as.character(train2$Biodata_05))
+train2$Biodata_06 <- as.factor(as.character(train2$Biodata_06))
+train2$Biodata_07 <- as.factor(as.character(train2$Biodata_07))
+train2$Biodata_08 <- as.factor(as.character(train2$Biodata_08))
+train2$Biodata_09 <- as.factor(as.character(train2$Biodata_09))
+train2$Biodata_10 <- as.factor(as.character(train2$Biodata_10))
+train2$Biodata_11 <- as.factor(as.character(train2$Biodata_11))
+train2$Biodata_12 <- as.factor(as.character(train2$Biodata_12))
+train2$Biodata_13 <- as.factor(as.character(train2$Biodata_13))
+train2$Biodata_14 <- as.factor(as.character(train2$Biodata_14))
+train2$Biodata_15 <- as.factor(as.character(train2$Biodata_15))
+train2$Biodata_16 <- as.factor(as.character(train2$Biodata_16))
+train2$Biodata_17 <- as.factor(as.character(train2$Biodata_17))
+train2$Biodata_18 <- as.factor(as.character(train2$Biodata_18))
+train2$Biodata_19 <- as.factor(as.character(train2$Biodata_19))
+train2$Biodata_20 <- as.factor(as.character(train2$Biodata_20))
+
+#########################################
+#########################################    "PScale" data - 
+#########################################
+
+train2$PScale01_Q2 <- 5-train2$PScale01_Q2
+train2$PScale01_Q3 <- 5-train2$PScale01_Q3
+train2$PScale02_Q2 <- 5-train2$PScale02_Q2
+train2$PScale03_Q1 <- 5-train2$PScale03_Q1
+train2$PScale04_Q1 <- 5-train2$PScale04_Q1
+train2$PScale06_Q3 <- 5-train2$PScale06_Q3
+train2$PScale06_Q6 <- 5-train2$PScale06_Q6
+train2$PScale07_Q2 <- 5-train2$PScale07_Q2
+train2$PScale08_Q2 <- 5-train2$PScale08_Q2
+train2$PScale08_Q4 <- 5-train2$PScale08_Q4
+train2$PScale09_Q2 <- 5-train2$PScale09_Q2
+train2$PScale10_Q3 <- 5-train2$PScale10_Q3
+train2$PScale10_Q4 <- 5-train2$PScale10_Q4
+train2$PScale11_Q2 <- 5-train2$PScale11_Q2
+train2$PScale11_Q3 <- 5-train2$PScale11_Q3
+train2$PScale12_Q3 <- 5-train2$PScale12_Q3
+train2$PScale12_Q4 <- 5-train2$PScale12_Q4
+train2$PScale13_Q3 <- 5-train2$PScale13_Q3
+train2$PScale13_Q4 <- 5-train2$PScale13_Q4
+
+train2$PS1 <- rowMeans(train2[67:70],na.rm=TRUE)  ## new run starts at 67
+train2$PS2 <- rowMeans(train2[71:74],na.rm=TRUE)  ## ergo subtract 8 from each number (correct 4/10/20)
+train2$PS3 <- rowMeans(train2[75:78],na.rm=TRUE)
+train2$PS4 <- rowMeans(train2[79:82],na.rm=TRUE)
+train2$PS5 <- rowMeans(train2[83:86],na.rm=TRUE)
+train2$PS6 <- rowMeans(train2[87:92],na.rm=TRUE)
+train2$PS7 <- rowMeans(train2[93:96],na.rm=TRUE)
+train2$PS8 <- rowMeans(train2[97:100],na.rm=TRUE)
+train2$PS9 <- rowMeans(train2[101:104],na.rm=TRUE)
+train2$PS10 <- rowMeans(train2[105:108],na.rm=TRUE)
+train2$PS11 <- rowMeans(train2[109:112],na.rm=TRUE)
+train2$PS12 <- rowMeans(train2[113:116],na.rm=TRUE)
+train2$PS13 <- rowMeans(train2[117:121],na.rm=TRUE)
+
+#########################################
+#########################################    Applying empirical keys (how to score responses) for bio and SJts
+#########################################
+
+train2$bio1[train2$Biodata_01 == "1"] <- weights.bio1[1]
+train2$bio1[train2$Biodata_01 == "2"] <- weights.bio1[2]
+train2$bio1[train2$Biodata_01 == "3"] <- weights.bio1[3]
+train2$bio1[train2$Biodata_01 == "4"] <- weights.bio1[4]
+train2$bio1[train2$Biodata_01 == "5"] <- weights.bio1[5]
+train2$bio1[train2$Biodata_01 == "6"] <- weights.bio1[6]
+
+train2$bio2[train2$Biodata_02 == "1"] <- weights.bio2[1]
+train2$bio2[train2$Biodata_02 == "2"] <- weights.bio2[2]
+train2$bio2[train2$Biodata_02 == "3"] <- weights.bio2[3]
+train2$bio2[train2$Biodata_02 == "4"] <- weights.bio2[4]
+train2$bio2[train2$Biodata_02 == "5"] <- weights.bio2[5]
+train2$bio2[train2$Biodata_02 == "6"] <- weights.bio2[6]
+train2$bio2[train2$Biodata_02 == "7"] <- weights.bio2[7]
+train2$bio2[train2$Biodata_02 == "8"] <- weights.bio2[8]
+
+train2$bio3[train2$Biodata_03 == "1"] <- weights.bio3[1]
+train2$bio3[train2$Biodata_03 == "2"] <- weights.bio3[2]
+train2$bio3[train2$Biodata_03 == "3"] <- weights.bio3[3]
+train2$bio3[train2$Biodata_03 == "4"] <- weights.bio3[4]
+train2$bio3[train2$Biodata_03 == "5"] <- weights.bio3[5]
+train2$bio3[train2$Biodata_03 == "6"] <- weights.bio3[6]
+train2$bio3[train2$Biodata_03 == "7"] <- weights.bio3[7]
+
+train2$bio4[train2$Biodata_04 == "1"] <- weights.bio4[1]
+train2$bio4[train2$Biodata_04 == "2"] <- weights.bio4[2]
+train2$bio4[train2$Biodata_04 == "3"] <- weights.bio4[3]
+train2$bio4[train2$Biodata_04 == "4"] <- weights.bio4[4]
+train2$bio4[train2$Biodata_04 == "5"] <- weights.bio4[5]
+train2$bio4[train2$Biodata_04 == "6"] <- weights.bio4[6]
+train2$bio4[train2$Biodata_04 == "7"] <- weights.bio4[7]
+train2$bio4[train2$Biodata_04 == "8"] <- weights.bio4[8]
+
+train2$bio5[train2$Biodata_05 == "1"] <- weights.bio5[1]
+train2$bio5[train2$Biodata_05 == "2"] <- weights.bio5[2]
+train2$bio5[train2$Biodata_05 == "3"] <- weights.bio5[3]
+train2$bio5[train2$Biodata_05 == "4"] <- weights.bio5[4]
+train2$bio5[train2$Biodata_05 == "5"] <- weights.bio5[5]
+
+train2$bio6[train2$Biodata_06 == "1"] <- weights.bio6[1]
+train2$bio6[train2$Biodata_06 == "2"] <- weights.bio6[2]
+train2$bio6[train2$Biodata_06 == "3"] <- weights.bio6[3]
+train2$bio6[train2$Biodata_06 == "4"] <- weights.bio6[4]
+train2$bio6[train2$Biodata_06 == "5"] <- weights.bio6[5]
+train2$bio6[train2$Biodata_06 == "6"] <- weights.bio6[6]
+train2$bio6[train2$Biodata_06 == "7"] <- weights.bio6[7]
+
+train2$bio7[train2$Biodata_07 == "1"] <- weights.bio7[1]
+train2$bio7[train2$Biodata_07 == "3"] <- weights.bio7[3]
+train2$bio7[train2$Biodata_07 == "4"] <- weights.bio7[4]
+train2$bio7[train2$Biodata_07 == "5"] <- weights.bio7[5]
+train2$bio7[train2$Biodata_07 == "6"] <- weights.bio7[6]
+
+train2$bio8[train2$Biodata_08 == "1"] <- weights.bio8[1]
+train2$bio8[train2$Biodata_08 == "2"] <- weights.bio8[2]
+train2$bio8[train2$Biodata_08 == "3"] <- weights.bio8[3]
+train2$bio8[train2$Biodata_08 == "4"] <- weights.bio8[4]
+train2$bio8[train2$Biodata_08 == "5"] <- weights.bio8[5]
+train2$bio8[train2$Biodata_08 == "6"] <- weights.bio8[6]
+train2$bio8[train2$Biodata_08 == "7"] <- weights.bio8[7]
+train2$bio8[train2$Biodata_08 == "8"] <- weights.bio8[8]
+
+train2$bio9[train2$Biodata_09 == "1"] <- weights.bio9[1]
+train2$bio9[train2$Biodata_09 == "2"] <- weights.bio9[2]
+train2$bio9[train2$Biodata_09 == "3"] <- weights.bio9[3]
+train2$bio9[train2$Biodata_09 == "4"] <- weights.bio9[4]
+train2$bio9[train2$Biodata_09 == "5"] <- weights.bio9[5]
+train2$bio9[train2$Biodata_09 == "6"] <- weights.bio9[6]
+train2$bio9[train2$Biodata_09 == "7"] <- weights.bio9[7]
+
+train2$bio10[train2$Biodata_10 == "1"] <- weights.bio10[1]
+train2$bio10[train2$Biodata_10 == "2"] <- weights.bio10[2]
+train2$bio10[train2$Biodata_10 == "3"] <- weights.bio10[3]
+train2$bio10[train2$Biodata_10 == "4"] <- weights.bio10[4]
+train2$bio10[train2$Biodata_10 == "5"] <- weights.bio10[5]
+train2$bio10[train2$Biodata_10 == "6"] <- weights.bio10[6]
+train2$bio10[train2$Biodata_10 == "7"] <- weights.bio10[7]
+
+train2$bio11[train2$Biodata_11 == "1"] <- weights.bio11[1]
+train2$bio11[train2$Biodata_11 == "2"] <- weights.bio11[2]
+train2$bio11[train2$Biodata_11 == "3"] <- weights.bio11[3]
+train2$bio11[train2$Biodata_11 == "4"] <- weights.bio11[4]
+train2$bio11[train2$Biodata_11 == "5"] <- weights.bio11[5]
+train2$bio11[train2$Biodata_11 == "6"] <- weights.bio11[6]
+train2$bio11[train2$Biodata_11 == "7"] <- weights.bio11[7]
+train2$bio11[train2$Biodata_11 == "8"] <- weights.bio11[8]
+
+train2$bio12[train2$Biodata_12 == "1"] <- weights.bio12[1]
+train2$bio12[train2$Biodata_12 == "2"] <- weights.bio12[2]
+train2$bio12[train2$Biodata_12 == "3"] <- weights.bio12[3]
+train2$bio12[train2$Biodata_12 == "4"] <- weights.bio12[4]
+train2$bio12[train2$Biodata_12 == "5"] <- weights.bio12[5]
+train2$bio12[train2$Biodata_12 == "6"] <- weights.bio12[6]
+
+train2$bio13[train2$Biodata_13 == "1"] <- weights.bio13[1]
+train2$bio13[train2$Biodata_13 == "2"] <- weights.bio13[2]
+train2$bio13[train2$Biodata_13 == "3"] <- weights.bio13[3]
+train2$bio13[train2$Biodata_13 == "4"] <- weights.bio13[4]
+train2$bio13[train2$Biodata_13 == "5"] <- weights.bio13[5]
+train2$bio13[train2$Biodata_13 == "6"] <- weights.bio13[6]
+
+train2$bio14[train2$Biodata_14 == "1"] <- weights.bio14[1]
+train2$bio14[train2$Biodata_14 == "2"] <- weights.bio14[2]
+train2$bio14[train2$Biodata_14 == "3"] <- weights.bio14[3]
+train2$bio14[train2$Biodata_14 == "4"] <- weights.bio14[4]
+train2$bio14[train2$Biodata_14 == "5"] <- weights.bio14[5]
+train2$bio14[train2$Biodata_14 == "6"] <- weights.bio14[6]
+
+train2$bio15[train2$Biodata_15 == "1"] <- weights.bio15[1]
+train2$bio15[train2$Biodata_15 == "2"] <- weights.bio15[2]
+train2$bio15[train2$Biodata_15 == "3"] <- weights.bio15[3]
+train2$bio15[train2$Biodata_15 == "4"] <- weights.bio15[4]
+train2$bio15[train2$Biodata_15 == "5"] <- weights.bio15[5]
+train2$bio15[train2$Biodata_15 == "6"] <- weights.bio15[6]
+
+train2$bio16[train2$Biodata_16 == "1"] <- weights.bio16[1]
+train2$bio16[train2$Biodata_16 == "2"] <- weights.bio16[2]
+train2$bio16[train2$Biodata_16 == "3"] <- weights.bio16[3]
+train2$bio16[train2$Biodata_16 == "4"] <- weights.bio16[4]
+train2$bio16[train2$Biodata_16 == "5"] <- weights.bio16[5]
+train2$bio16[train2$Biodata_16 == "6"] <- weights.bio16[6]
+
+train2$bio17[train2$Biodata_17 == "1"] <- weights.bio17[1]
+train2$bio17[train2$Biodata_17 == "3"] <- weights.bio17[3]
+train2$bio17[train2$Biodata_17 == "4"] <- weights.bio17[4]
+train2$bio17[train2$Biodata_17 == "5"] <- weights.bio17[5]
+train2$bio17[train2$Biodata_17 == "6"] <- weights.bio17[6]
+train2$bio17[train2$Biodata_17 == "7"] <- weights.bio17[7]
+
+train2$bio18[train2$Biodata_18 == "1"] <- weights.bio18[1]
+train2$bio18[train2$Biodata_18 == "2"] <- weights.bio18[2]
+train2$bio18[train2$Biodata_18 == "3"] <- weights.bio18[3]
+train2$bio18[train2$Biodata_18 == "4"] <- weights.bio18[4]
+train2$bio18[train2$Biodata_18 == "5"] <- weights.bio18[5]
+train2$bio18[train2$Biodata_18 == "6"] <- weights.bio18[6]
+train2$bio18[train2$Biodata_18 == "7"] <- weights.bio18[7]
+
+train2$bio19[train2$Biodata_19 == "1"] <- weights.bio19[1]
+train2$bio19[train2$Biodata_19 == "2"] <- weights.bio19[2]
+train2$bio19[train2$Biodata_19 == "3"] <- weights.bio19[3]
+train2$bio19[train2$Biodata_19 == "4"] <- weights.bio19[4]
+train2$bio19[train2$Biodata_19 == "5"] <- weights.bio19[5]
+train2$bio19[train2$Biodata_19 == "6"] <- weights.bio19[6]
+train2$bio19[train2$Biodata_19 == "7"] <- weights.bio19[7]
+
+train2$bio20[train2$Biodata_20 == "1"] <- weights.bio20[1]
+train2$bio20[train2$Biodata_20 == "2"] <- weights.bio20[2]
+train2$bio20[train2$Biodata_20 == "3"] <- weights.bio20[3]
+train2$bio20[train2$Biodata_20 == "4"] <- weights.bio20[4]
+train2$bio20[train2$Biodata_20 == "5"] <- weights.bio20[5]
+train2$bio20[train2$Biodata_20 == "6"] <- weights.bio20[6]
+
+train2$bio_scale <- rowMeans(train2[144:163], na.rm=TRUE)    ## Correct 4/10/20
+
+train2$SJ1.score[train2$SJ_Most_1 == "1" & train2$SJ_Least_1 == "2" ] <- weights.sj1[1]
+train2$SJ1.score[train2$SJ_Most_1 == "1" & train2$SJ_Least_1 == "3" ] <- weights.sj1[2]
+train2$SJ1.score[train2$SJ_Most_1 == "1" & train2$SJ_Least_1 == "4" ] <- weights.sj1[3]
+train2$SJ1.score[train2$SJ_Most_1 == "2" & train2$SJ_Least_1 == "1" ] <- weights.sj1[4]
+train2$SJ1.score[train2$SJ_Most_1 == "2" & train2$SJ_Least_1 == "3" ] <- weights.sj1[5]
+train2$SJ1.score[train2$SJ_Most_1 == "2" & train2$SJ_Least_1 == "4" ] <- weights.sj1[6]
+train2$SJ1.score[train2$SJ_Most_1 == "3" & train2$SJ_Least_1 == "1" ] <- weights.sj1[7]
+train2$SJ1.score[train2$SJ_Most_1 == "3" & train2$SJ_Least_1 == "2" ] <- weights.sj1[8]
+train2$SJ1.score[train2$SJ_Most_1 == "3" & train2$SJ_Least_1 == "4" ] <- weights.sj1[9]
+train2$SJ1.score[train2$SJ_Most_1 == "4" & train2$SJ_Least_1 == "1" ] <- weights.sj1[10]
+train2$SJ1.score[train2$SJ_Most_1 == "4" & train2$SJ_Least_1 == "2" ] <- weights.sj1[11]
+train2$SJ1.score[train2$SJ_Most_1 == "4" & train2$SJ_Least_1 == "3" ] <- weights.sj1[12]
+
+train2$SJ2.score[train2$SJ_Most_2 == "1" & train2$SJ_Least_2 == "2" ] <- weights.sj2[1]
+train2$SJ2.score[train2$SJ_Most_2 == "1" & train2$SJ_Least_2 == "3" ] <- weights.sj2[2]
+train2$SJ2.score[train2$SJ_Most_2 == "1" & train2$SJ_Least_2 == "4" ] <- weights.sj2[3]
+train2$SJ2.score[train2$SJ_Most_2 == "2" & train2$SJ_Least_2 == "1" ] <- weights.sj2[4]
+train2$SJ2.score[train2$SJ_Most_2 == "2" & train2$SJ_Least_2 == "3" ] <- weights.sj2[5]
+train2$SJ2.score[train2$SJ_Most_2 == "2" & train2$SJ_Least_2 == "4" ] <- weights.sj2[6]
+train2$SJ2.score[train2$SJ_Most_2 == "3" & train2$SJ_Least_2 == "1" ] <- weights.sj2[7]
+train2$SJ2.score[train2$SJ_Most_2 == "3" & train2$SJ_Least_2 == "2" ] <- weights.sj2[8]
+train2$SJ2.score[train2$SJ_Most_2 == "3" & train2$SJ_Least_2 == "4" ] <- weights.sj2[9]
+train2$SJ2.score[train2$SJ_Most_2 == "4" & train2$SJ_Least_2 == "1" ] <- weights.sj2[10]
+train2$SJ2.score[train2$SJ_Most_2 == "4" & train2$SJ_Least_2 == "2" ] <- weights.sj2[11]
+train2$SJ2.score[train2$SJ_Most_2 == "4" & train2$SJ_Least_2 == "3" ] <- weights.sj2[12]
+
+train2$SJ3.score[train2$SJ_Most_3 == "1" & train2$SJ_Least_3 == "2" ] <- weights.sj3[1]
+train2$SJ3.score[train2$SJ_Most_3 == "1" & train2$SJ_Least_3 == "3" ] <- weights.sj3[2]
+train2$SJ3.score[train2$SJ_Most_3 == "1" & train2$SJ_Least_3 == "4" ] <- weights.sj3[3]
+train2$SJ3.score[train2$SJ_Most_3 == "2" & train2$SJ_Least_3 == "1" ] <- weights.sj3[4]
+train2$SJ3.score[train2$SJ_Most_3 == "2" & train2$SJ_Least_3 == "3" ] <- weights.sj3[5]
+train2$SJ3.score[train2$SJ_Most_3 == "2" & train2$SJ_Least_3 == "4" ] <- weights.sj3[6]
+train2$SJ3.score[train2$SJ_Most_3 == "3" & train2$SJ_Least_3 == "1" ] <- weights.sj3[7]
+train2$SJ3.score[train2$SJ_Most_3 == "3" & train2$SJ_Least_3 == "2" ] <- weights.sj3[8]
+train2$SJ3.score[train2$SJ_Most_3 == "3" & train2$SJ_Least_3 == "4" ] <- weights.sj3[9]
+train2$SJ3.score[train2$SJ_Most_3 == "4" & train2$SJ_Least_3 == "1" ] <- weights.sj3[10]
+train2$SJ3.score[train2$SJ_Most_3 == "4" & train2$SJ_Least_3 == "2" ] <- weights.sj3[11]
+train2$SJ3.score[train2$SJ_Most_3 == "4" & train2$SJ_Least_3 == "3" ] <- weights.sj3[12]
+
+train2$SJ4.score[train2$SJ_Most_4 == "1" & train2$SJ_Least_4 == "2" ] <- weights.sj4[1]
+train2$SJ4.score[train2$SJ_Most_4 == "1" & train2$SJ_Least_4 == "3" ] <- weights.sj4[2]
+train2$SJ4.score[train2$SJ_Most_4 == "1" & train2$SJ_Least_4 == "4" ] <- weights.sj4[3]
+train2$SJ4.score[train2$SJ_Most_4 == "2" & train2$SJ_Least_4 == "1" ] <- weights.sj4[4]
+train2$SJ4.score[train2$SJ_Most_4 == "2" & train2$SJ_Least_4 == "3" ] <- weights.sj4[5]
+train2$SJ4.score[train2$SJ_Most_4 == "2" & train2$SJ_Least_4 == "4" ] <- weights.sj4[6]
+train2$SJ4.score[train2$SJ_Most_4 == "3" & train2$SJ_Least_4 == "1" ] <- weights.sj4[7]
+train2$SJ4.score[train2$SJ_Most_4 == "3" & train2$SJ_Least_4 == "2" ] <- weights.sj4[8]
+train2$SJ4.score[train2$SJ_Most_4 == "3" & train2$SJ_Least_4 == "4" ] <- weights.sj4[9]
+train2$SJ4.score[train2$SJ_Most_4 == "4" & train2$SJ_Least_4 == "1" ] <- weights.sj4[10]
+train2$SJ4.score[train2$SJ_Most_4 == "4" & train2$SJ_Least_4 == "2" ] <- weights.sj4[11]
+train2$SJ4.score[train2$SJ_Most_4 == "4" & train2$SJ_Least_4 == "3" ] <- weights.sj4[12]
+
+train2$SJ5.score[train2$SJ_Most_5 == "1" & train2$SJ_Least_5 == "2" ] <- weights.sj5[1]
+train2$SJ5.score[train2$SJ_Most_5 == "1" & train2$SJ_Least_5 == "3" ] <- weights.sj5[2]
+train2$SJ5.score[train2$SJ_Most_5 == "1" & train2$SJ_Least_5 == "4" ] <- weights.sj5[3]
+train2$SJ5.score[train2$SJ_Most_5 == "2" & train2$SJ_Least_5 == "1" ] <- weights.sj5[4]
+train2$SJ5.score[train2$SJ_Most_5 == "2" & train2$SJ_Least_5 == "3" ] <- weights.sj5[5]
+train2$SJ5.score[train2$SJ_Most_5 == "2" & train2$SJ_Least_5 == "4" ] <- weights.sj5[6]
+train2$SJ5.score[train2$SJ_Most_5 == "3" & train2$SJ_Least_5 == "1" ] <- weights.sj5[7]
+train2$SJ5.score[train2$SJ_Most_5 == "3" & train2$SJ_Least_5 == "2" ] <- weights.sj5[8]
+train2$SJ5.score[train2$SJ_Most_5 == "3" & train2$SJ_Least_5 == "4" ] <- weights.sj5[9]
+train2$SJ5.score[train2$SJ_Most_5 == "4" & train2$SJ_Least_5 == "1" ] <- weights.sj5[10]
+train2$SJ5.score[train2$SJ_Most_5 == "4" & train2$SJ_Least_5 == "2" ] <- weights.sj5[11]
+train2$SJ5.score[train2$SJ_Most_5 == "4" & train2$SJ_Least_5 == "3" ] <- weights.sj5[12]
+
+train2$SJ6.score[train2$SJ_Most_6 == "1" & train2$SJ_Least_6 == "2" ] <- weights.sj6[1]
+train2$SJ6.score[train2$SJ_Most_6 == "1" & train2$SJ_Least_6 == "3" ] <- weights.sj6[2]
+train2$SJ6.score[train2$SJ_Most_6 == "1" & train2$SJ_Least_6 == "4" ] <- weights.sj6[3]
+train2$SJ6.score[train2$SJ_Most_6 == "2" & train2$SJ_Least_6 == "1" ] <- weights.sj6[4]
+train2$SJ6.score[train2$SJ_Most_6 == "2" & train2$SJ_Least_6 == "3" ] <- weights.sj6[5]
+train2$SJ6.score[train2$SJ_Most_6 == "2" & train2$SJ_Least_6 == "4" ] <- weights.sj6[6]
+train2$SJ6.score[train2$SJ_Most_6 == "3" & train2$SJ_Least_6 == "1" ] <- weights.sj6[7]
+train2$SJ6.score[train2$SJ_Most_6 == "3" & train2$SJ_Least_6 == "2" ] <- weights.sj6[8]
+train2$SJ6.score[train2$SJ_Most_6 == "3" & train2$SJ_Least_6 == "4" ] <- weights.sj6[9]
+train2$SJ6.score[train2$SJ_Most_6 == "4" & train2$SJ_Least_6 == "1" ] <- weights.sj6[10]
+train2$SJ6.score[train2$SJ_Most_6 == "4" & train2$SJ_Least_6 == "2" ] <- weights.sj6[11]
+train2$SJ6.score[train2$SJ_Most_6 == "4" & train2$SJ_Least_6 == "3" ] <- weights.sj6[12]
+
+train2$SJ7.score[train2$SJ_Most_7 == "1" & train2$SJ_Least_7 == "2" ] <- weights.sj7[1]
+train2$SJ7.score[train2$SJ_Most_7 == "1" & train2$SJ_Least_7 == "3" ] <- weights.sj7[2]
+train2$SJ7.score[train2$SJ_Most_7 == "1" & train2$SJ_Least_7 == "4" ] <- weights.sj7[3]
+train2$SJ7.score[train2$SJ_Most_7 == "2" & train2$SJ_Least_7 == "1" ] <- weights.sj7[4]
+train2$SJ7.score[train2$SJ_Most_7 == "2" & train2$SJ_Least_7 == "3" ] <- weights.sj7[5]
+train2$SJ7.score[train2$SJ_Most_7 == "2" & train2$SJ_Least_7 == "4" ] <- weights.sj7[6]
+train2$SJ7.score[train2$SJ_Most_7 == "3" & train2$SJ_Least_7 == "1" ] <- weights.sj7[7]
+train2$SJ7.score[train2$SJ_Most_7 == "3" & train2$SJ_Least_7 == "2" ] <- weights.sj7[8]
+train2$SJ7.score[train2$SJ_Most_7 == "3" & train2$SJ_Least_7 == "4" ] <- weights.sj7[9]
+train2$SJ7.score[train2$SJ_Most_7 == "4" & train2$SJ_Least_7 == "1" ] <- weights.sj7[10]
+train2$SJ7.score[train2$SJ_Most_7 == "4" & train2$SJ_Least_7 == "2" ] <- weights.sj7[11]
+train2$SJ7.score[train2$SJ_Most_7 == "4" & train2$SJ_Least_7 == "3" ] <- weights.sj7[12]
+
+train2$SJ8.score[train2$SJ_Most_8 == "1" & train2$SJ_Least_8 == "2" ] <- weights.sj8[1]
+train2$SJ8.score[train2$SJ_Most_8 == "1" & train2$SJ_Least_8 == "3" ] <- weights.sj8[2]
+train2$SJ8.score[train2$SJ_Most_8 == "1" & train2$SJ_Least_8 == "4" ] <- weights.sj8[3]
+train2$SJ8.score[train2$SJ_Most_8 == "2" & train2$SJ_Least_8 == "1" ] <- weights.sj8[4]
+train2$SJ8.score[train2$SJ_Most_8 == "2" & train2$SJ_Least_8 == "3" ] <- weights.sj8[5]
+train2$SJ8.score[train2$SJ_Most_8 == "2" & train2$SJ_Least_8 == "4" ] <- weights.sj8[6]
+train2$SJ8.score[train2$SJ_Most_8 == "3" & train2$SJ_Least_8 == "1" ] <- weights.sj8[7]
+train2$SJ8.score[train2$SJ_Most_8 == "3" & train2$SJ_Least_8 == "2" ] <- weights.sj8[8]
+train2$SJ8.score[train2$SJ_Most_8 == "3" & train2$SJ_Least_8 == "4" ] <- weights.sj8[9]
+train2$SJ8.score[train2$SJ_Most_8 == "4" & train2$SJ_Least_8 == "1" ] <- weights.sj8[10]
+train2$SJ8.score[train2$SJ_Most_8 == "4" & train2$SJ_Least_8 == "2" ] <- weights.sj8[11]
+train2$SJ8.score[train2$SJ_Most_8 == "4" & train2$SJ_Least_8 == "3" ] <- weights.sj8[12]
+
+train2$SJ9.score[train2$SJ_Most_9 == "1" & train2$SJ_Least_9 == "2" ] <- weights.sj9[1]
+train2$SJ9.score[train2$SJ_Most_9 == "1" & train2$SJ_Least_9 == "3" ] <- weights.sj9[2]
+train2$SJ9.score[train2$SJ_Most_9 == "1" & train2$SJ_Least_9 == "4" ] <- weights.sj9[3]
+train2$SJ9.score[train2$SJ_Most_9 == "2" & train2$SJ_Least_9 == "1" ] <- weights.sj9[4]
+train2$SJ9.score[train2$SJ_Most_9 == "2" & train2$SJ_Least_9 == "3" ] <- weights.sj9[5]
+train2$SJ9.score[train2$SJ_Most_9 == "2" & train2$SJ_Least_9 == "4" ] <- weights.sj9[6]
+train2$SJ9.score[train2$SJ_Most_9 == "3" & train2$SJ_Least_9 == "1" ] <- weights.sj9[7]
+train2$SJ9.score[train2$SJ_Most_9 == "3" & train2$SJ_Least_9 == "2" ] <- weights.sj9[8]
+train2$SJ9.score[train2$SJ_Most_9 == "3" & train2$SJ_Least_9 == "4" ] <- weights.sj9[9]
+train2$SJ9.score[train2$SJ_Most_9 == "4" & train2$SJ_Least_9 == "1" ] <- weights.sj9[10]
+train2$SJ9.score[train2$SJ_Most_9 == "4" & train2$SJ_Least_9 == "2" ] <- weights.sj9[11]
+train2$SJ9.score[train2$SJ_Most_9 == "4" & train2$SJ_Least_9 == "3" ] <- weights.sj9[12]
+
+#########################################
+#########################################    No need to empirically key latency or PScale scores
+#########################################
+
+train2$latency <- rowMeans(train2[c(4,7,10,13,16,19,22,25,28)])  ## Correct 4/10/20
+
+
+#########################################
+#########################################    Simplified data
+#########################################
+
+temp2 <- train2[c(1,164:174,131:143)]         ## 1 is unique identifier code
+write.csv(temp2, "validate.csv")
+validate <- temp2[,-1]
+
+```
+
+```{r predictions, echo=FALSE, warning=FALSE, message=FALSE}
+
+names(validate)[12] <- "PScale1"
+names(validate)[13] <- "PScale2"
+names(validate)[14] <- "PScale3"
+names(validate)[15] <- "PScale4"
+names(validate)[16] <- "PScale5"
+names(validate)[17] <- "PScale6"
+names(validate)[18] <- "PScale7"
+names(validate)[19] <- "PScale8"
+names(validate)[20] <- "PScale9"
+names(validate)[21] <- "PScale10"
+names(validate)[22] <- "PScale11"
+names(validate)[23] <- "PScale12"
+names(validate)[24] <- "PScale13"
+
+library(dplyr)
+# Create mean (dev_participant.csv has missing values that are messing up predictions)
+average_missing <- apply(validate[,colnames(validate) %in% colnames(validate)],
+                         2,
+                         mean,
+                         na.rm =  TRUE)
+
+validate_replace <- validate %>%
+  mutate(bio_scale  = ifelse(is.na(bio_scale), average_missing[1], bio_scale),
+         
+         SJ1.score =  ifelse(is.na(SJ1.score), average_missing[2], SJ1.score),
+         SJ2.score  = ifelse(is.na(SJ2.score), average_missing[3], SJ2.score),
+         SJ3.score =  ifelse(is.na(SJ3.score), average_missing[4], SJ3.score),
+         SJ4.score  = ifelse(is.na(SJ4.score), average_missing[5], SJ4.score),
+         SJ5.score =  ifelse(is.na(SJ5.score), average_missing[6], SJ5.score),
+         SJ6.score  = ifelse(is.na(SJ6.score), average_missing[7], SJ6.score),
+         SJ7.score =  ifelse(is.na(SJ7.score), average_missing[8], SJ7.score),
+         SJ8.score  = ifelse(is.na(SJ8.score), average_missing[9], SJ8.score),
+         SJ9.score =  ifelse(is.na(SJ9.score), average_missing[10], SJ9.score),
+         
+         latency    = ifelse(is.na(latency), average_missing[11], latency),
+         
+         PScale1  =  ifelse(is.na(PScale1), average_missing[12], PScale1),
+         PScale2   = ifelse(is.na(PScale2), average_missing[13], PScale2),
+         PScale3  =  ifelse(is.na(PScale3), average_missing[14], PScale3),
+         PScale4   = ifelse(is.na(PScale4), average_missing[15], PScale4),
+         PScale5  =  ifelse(is.na(PScale5), average_missing[16], PScale5),
+         PScale6   = ifelse(is.na(PScale6), average_missing[17], PScale6),
+         PScale7  =  ifelse(is.na(PScale7), average_missing[18], PScale7),
+         PScale8   = ifelse(is.na(PScale8), average_missing[19], PScale8),
+         PScale9  =  ifelse(is.na(PScale9), average_missing[20], PScale9),
+         PScale10  = ifelse(is.na(PScale10), average_missing[21], PScale10),
+         PScale11 =  ifelse(is.na(PScale11), average_missing[22], PScale11),
+         PScale12  = ifelse(is.na(PScale12), average_missing[23], PScale12),
+         PScale13 =  ifelse(is.na(PScale13), average_missing[24], PScale13))
+
+
+validate_replace2 <- validate_replace     ## to use in ML regression code chunk below
+
+#predictions <- predict(fit.svm, validate_replace)
+#write.csv(predictions, "predic.csv")
+
+```
+
+
+## Repeated K-Fold Cross-validation
+
+Trying the most common form of "machine-learning" regression
+
+```{r regression, echo=FALSE, warning=FALSE, message=FALSE}
+
+
+validate_replace$yhat <- ((test$coefficients[2]*validate_replace$PScale1) +
+  (test$coefficients[3]*validate_replace$PScale2) +
+  (test$coefficients[4]*validate_replace$PScale3) +
+  (test$coefficients[5]*validate_replace$PScale4) +
+  (test$coefficients[6]*validate_replace$PScale5) +
+  (test$coefficients[7]*validate_replace$PScale6) +
+  (test$coefficients[8]*validate_replace$PScale7) +
+  (test$coefficients[9]*validate_replace$PScale8) +
+  (test$coefficients[10]*validate_replace$PScale9) +
+  (test$coefficients[11]*validate_replace$PScale10) +
+  (test$coefficients[12]*validate_replace$PScale11) +
+  (test$coefficients[13]*validate_replace$PScale12) +
+  (test$coefficients[14]*validate_replace$PScale13) +
+  (test$coefficients[15]*validate_replace$bio_scale) +
+  (test$coefficients[16]*validate_replace$SJ1.score) +
+  (test$coefficients[17]*validate_replace$SJ2.score) +
+  (test$coefficients[18]*validate_replace$SJ3.score) +
+  (test$coefficients[19]*validate_replace$SJ4.score) +
+  (test$coefficients[20]*validate_replace$SJ5.score) +
+  (test$coefficients[21]*validate_replace$SJ6.score) +
+  (test$coefficients[22]*validate_replace$SJ7.score) +
+  (test$coefficients[23]*validate_replace$SJ8.score) +
+  (test$coefficients[24]*validate_replace$SJ9.score) +
+  (test$coefficients[25]*validate_replace$latency)) 
+
+write.csv(validate_replace,"regression.csv")
+
+```
+
+```{r Kfold, echo=FALSE, warning=FALSE, message=FALSE}
+
+## Getting missing data errors again with "trainControl" command
+
+
+scale2 <- read.csv("scale_scores.csv")
+
+##trying something different!! [actually getting really crazy: add in protected class for a bump - 4/13] Nope 4/14
+scale2$scalenew <- scale2$scale # + scale2$High_Performer + scale2$Retained ## + scale2$Protected_Group
+  
+dataset2 <- scale2[,c(7:31)]
+
+average_missing <- apply(dataset2[,colnames(dataset2) %in% colnames(dataset2)],
+                         2,
+                         mean,
+                         na.rm =  TRUE)
+library(dplyr)
+train_replace <- dataset2 %>%
+  mutate(bio_scale  = ifelse(is.na(bio_scale), average_missing[1], bio_scale),
+         
+         SJ1.score =  ifelse(is.na(SJ1.score), average_missing[2], SJ1.score),
+         SJ2.score  = ifelse(is.na(SJ2.score), average_missing[3], SJ2.score),
+         SJ3.score =  ifelse(is.na(SJ3.score), average_missing[4], SJ3.score),
+         SJ4.score  = ifelse(is.na(SJ4.score), average_missing[5], SJ4.score),
+         SJ5.score =  ifelse(is.na(SJ5.score), average_missing[6], SJ5.score),
+         SJ6.score  = ifelse(is.na(SJ6.score), average_missing[7], SJ6.score),
+         SJ7.score =  ifelse(is.na(SJ7.score), average_missing[8], SJ7.score),
+         SJ8.score  = ifelse(is.na(SJ8.score), average_missing[9], SJ8.score),
+         SJ9.score =  ifelse(is.na(SJ9.score), average_missing[10], SJ9.score),
+         
+         latency    = ifelse(is.na(latency), average_missing[11], latency),
+         
+         PScale1  =  ifelse(is.na(PScale1), average_missing[12], PScale1),
+         PScale2   = ifelse(is.na(PScale2), average_missing[13], PScale2),
+         PScale3  =  ifelse(is.na(PScale3), average_missing[14], PScale3),
+         PScale4   = ifelse(is.na(PScale4), average_missing[15], PScale4),
+         PScale5  =  ifelse(is.na(PScale5), average_missing[16], PScale5),
+         PScale6   = ifelse(is.na(PScale6), average_missing[17], PScale6),
+         PScale7  =  ifelse(is.na(PScale7), average_missing[18], PScale7),
+         PScale8   = ifelse(is.na(PScale8), average_missing[19], PScale8),
+         PScale9  =  ifelse(is.na(PScale9), average_missing[20], PScale9),
+         PScale10  = ifelse(is.na(PScale10), average_missing[21], PScale10),
+         PScale11 =  ifelse(is.na(PScale11), average_missing[22], PScale11),
+         PScale12  = ifelse(is.na(PScale12), average_missing[23], PScale12),
+         PScale13 =  ifelse(is.na(PScale13), average_missing[24], PScale13))
+
+
+
+library(caret)
+set.seed(9)   ## Multiple R ~ .29
+train.control <- trainControl(method = "repeatedcv",    ## repeatedcv
+                              number = 250, repeats = 250)
+# Train the model
+model <- train(scalenew ~., data = train_replace, method = "lm",   ## 
+               trControl = train.control)
+# Summarize the results
+print(model)
+summary(model)
+
+
+validate_replace2$yhat <- ((model$finalModel$coefficients[2]*validate_replace2$bio_scale) +
+  (model$finalModel$coefficients[3]*validate_replace2$SJ1.score) +
+  (model$finalModel$coefficients[4]*validate_replace2$SJ2.score) +
+  (model$finalModel$coefficients[5]*validate_replace2$SJ3.score) +
+  (model$finalModel$coefficients[6]*validate_replace2$SJ4.score) +
+  (model$finalModel$coefficients[7]*validate_replace2$SJ5.score) +
+  (model$finalModel$coefficients[8]*validate_replace2$SJ6.score) +
+  (model$finalModel$coefficients[9]*validate_replace2$SJ7.score) +
+  (model$finalModel$coefficients[10]*validate_replace2$SJ8.score) +
+  (model$finalModel$coefficients[11]*validate_replace2$SJ9.score) +
+  (model$finalModel$coefficients[12]*validate_replace2$latency) +
+  (model$finalModel$coefficients[13]*validate_replace2$PScale1) +
+  (model$finalModel$coefficients[14]*validate_replace2$PScale2) +
+  (model$finalModel$coefficients[15]*validate_replace2$PScale3) +
+  (model$finalModel$coefficients[16]*validate_replace2$PScale4) +
+  (model$finalModel$coefficients[17]*validate_replace2$PScale5) +
+  (model$finalModel$coefficients[18]*validate_replace2$PScale6) +
+  (model$finalModel$coefficients[19]*validate_replace2$PScale7) +
+  (model$finalModel$coefficients[20]*validate_replace2$PScale8) +
+  (model$finalModel$coefficients[21]*validate_replace2$PScale9) +
+  (model$finalModel$coefficients[22]*validate_replace2$PScale10) +
+  (model$finalModel$coefficients[23]*validate_replace2$PScale11) +
+  (model$finalModel$coefficients[24]*validate_replace2$PScale12) +
+  (model$finalModel$coefficients[25]*validate_replace2$PScale13)) 
+
+write.csv(validate_replace2,"MLregression.csv")
+
+## We've been taking this file "MLregression.csv" and looking at frequencies to do a median split via "hire not hire for regression.R"
+
+```
