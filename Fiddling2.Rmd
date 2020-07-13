@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
 ```
 
-## SIOP Contest
+## SIOP Contest Hello there 
 
 This is where we'll document our approach and progress to SIOP's 2020 Machine Learning competition.
 
