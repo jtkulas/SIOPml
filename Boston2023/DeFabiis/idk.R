@@ -13,6 +13,7 @@ test <- train %>% unnest_tokens(word, text_exercise_4) %>% select(word)
 bing_pos <- get_sentiments("bing") %>% filter(sentiment == "positive")
 bing_neg <- get_sentiments("bing") %>% filter(sentiment == "negative")
 
+# Remove stop words
 test <- test %>% anti_join(stop_words)
 
 # positive
