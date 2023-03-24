@@ -6,6 +6,7 @@
 
 train <- read.csv("Boston2023/train_pub.csv")
 library(descr)
+library(tidyverse)
 freq(train$rating_chooses_appropriate_action)
 freq(train$rating_commits_to_action)
 freq(train$rating_gathers_information)
@@ -38,3 +39,15 @@ train$predictor <- paste(train$text_exercise_4,
 
 library(stringr)
 train$predictor <- gsub('NA','',train$predictor)
+train$criterion <- round(rowMeans(train[2:7], na.rm=TRUE), 2)
+freq(train$criterion)
+data<-train%>% select(predictor, rating_chooses_appropriate_action,
+                      rating_commits_to_action, 
+                      rating_gathers_information,
+                      rating_identifies_issues_opportunities,
+                      rating_interprets_information,
+                      rating_involves_others,
+                      rating_decision_making_final_score)
+write_csv(data, "Boston2023/firstTry.csv")
+
+
