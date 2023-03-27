@@ -73,13 +73,13 @@ tab2 <- textstat_readability(data2,
                              measure = c("Flesch.Kincaid", "Dale.Chall"))
 use2 <- tab2[-1]
 
-rating_chooses_appropriate_action      <- predict(fit.lm1, use2)
-rating_commits_to_action               <- predict(fit.lm1, use2)
-rating_gathers_information             <- predict(fit.lm1, use2)
-rating_identifies_issues_opportunities <- predict(fit.lm1, use2)
-rating_interprets_information          <- predict(fit.lm1, use2)
-rating_involves_others                 <- predict(fit.lm1, use2)
-rating_decision_making_final_score     <- predict(fit.lm1, use2)
+rating_chooses_appropriate_action      <- predict(fit.lm1, use2)  ## was incorrect first run
+rating_commits_to_action               <- predict(fit.lm2, use2)
+rating_gathers_information             <- predict(fit.lm3, use2)
+rating_identifies_issues_opportunities <- predict(fit.lm4, use2)
+rating_interprets_information          <- predict(fit.lm5, use2)
+rating_involves_others                 <- predict(fit.lm6, use2)
+rating_decision_making_final_score     <- predict(fit.lm7, use2)
 
 names <- read.csv("Boston2023\\validate.csv")[2]
 
