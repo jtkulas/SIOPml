@@ -87,6 +87,14 @@ predictions2 <- cbind(names,rating_chooses_appropriate_action, rating_commits_to
 
 write.csv(predictions2, "Boston2023//winner.csv")
 
-descr::freq(predictions2$rating_chooses_appropriate_action)  ## need to expand to 1-->4, empirically 2.4 --> 3.227
+## rescaling to see if it matters
 
+predictions2$rating_chooses_appropriate_action <- scale(predictions2$rating_chooses_appropriate_action)*.9 + 2.5
+predictions2$rating_commits_to_action <- scale(predictions2$rating_commits_to_action)*.9 + 2.5
+predictions2$rating_gathers_information <- scale(predictions2$rating_gathers_information)*.9 + 2.5
+predictions2$rating_identifies_issues_opportunities <- scale(predictions2$rating_identifies_issues_opportunities)*.9 + 2.5
+predictions2$rating_interprets_information <- scale(predictions2$rating_interprets_information)*.9 + 2.5
+predictions2$rating_involves_others <- scale(predictions2$rating_involves_others)*.9 + 2.5
+predictions2$rating_decision_making_final_score <- scale(predictions2$rating_decision_making_final_score)*.9 + 4
 
+write.csv(predictions2, "Boston2023//winner2.csv")
