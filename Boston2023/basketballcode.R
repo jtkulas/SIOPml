@@ -10,7 +10,7 @@ data2 <- corpus(data, docid_field = "predictor",
 
 
 tab2 <- textstat_readability(data2,
-                             measure = c("Flesch.Kincaid", "Dale.Chall"))
+                             measure = c("Flesch.Kincaid", "Dale.Chall", "ARI", "Bormuth.MC", "DRP", "ELF", "FOG", "FORCAST", "Linsear.Write", "nWS", "SMOG"))
 
 temp <- cbind(data,tab2)
 
@@ -70,7 +70,7 @@ data2 <- corpus(validate, docid_field = "predictor",
 
 
 tab2 <- textstat_readability(data2,
-                             measure = c("Flesch.Kincaid", "Dale.Chall"))
+                             measure = c("Flesch.Kincaid", "Dale.Chall", "ARI", "Bormuth.MC", "DRP", "ELF", "FOG", "FORCAST", "Linsear.Write", "nWS", "SMOG"))
 use2 <- tab2[-1]
 
 rating_chooses_appropriate_action      <- predict(fit.lm1, use2)  ## was incorrect first run
